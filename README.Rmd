@@ -1,0 +1,31 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# MScThesis
+
+<!-- badges: start -->
+
+<!-- badges: end -->
+
+The goal of MScThesis is to **compare the clustering for bacterial flow cytometry data**.
+
+## Installation
+
+You can install the development version of MScThesis from [GitHub](https://github.com/) with:
+
+```{r,eval=F}
+install.packages("devtools")
+devtools::install_github("JinLin5301/MScThesis")
+```
