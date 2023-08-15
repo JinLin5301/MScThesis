@@ -1,6 +1,6 @@
 01-data
 ================
-Compiled at 2023-08-14 12:06:34 UTC
+Compiled at 2023-08-15 09:21:11 UTC
 
 The purpose of this document is to introduce three flow cytometry data
 that we’ll use for clustering comparison. They are:
@@ -234,6 +234,20 @@ for (i in names(micro_data_list)){
 }
 ```
 
+``` r
+C1_dim <- matrix(NA,nrow=length(C1_data),ncol=3)
+
+for (i in seq_along(C1_data)){
+  name <- names(C1_data)[i]
+  C1_dim[i,1] <- name
+  C1_dim[i,2:3]<-dim(C1_data[[i]])
+}
+
+C1_dim <- as.data.frame(C1_dim)
+colnames(C1_dim) <- c("fcs file","records","variables") 
+print(C1_dim)
+```
+
     ##           fcs file records variables
     ## 1  20160222_C1.fcs  257822        43
     ## 2  20160223_C1.fcs  255317        43
@@ -302,14 +316,14 @@ for (i in names(micro_data_list)){
     ## 65 20160523_C1.fcs  228591        43
 
 ``` r
-for (i in 1:15){
+for (i in 1:65){
   data <- C1_data[[i]]
   p <- ggcyto(data, aes(x = "PMT.1", y = "PMT.9")) + geom_hex(bins = 128)
-  print(p)
+  print(p,ncol=5)
 }
 ```
 
-![](01-data_files/figure-gfm/plot-micro-1.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-2.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-3.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-4.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-5.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-6.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-7.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-8.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-9.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-10.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-11.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-12.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-13.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-14.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-15.png)<!-- -->
+![](01-data_files/figure-gfm/plot-micro-1.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-2.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-3.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-4.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-5.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-6.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-7.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-8.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-9.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-10.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-11.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-12.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-13.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-14.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-15.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-16.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-17.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-18.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-19.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-20.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-21.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-22.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-23.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-24.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-25.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-26.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-27.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-28.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-29.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-30.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-31.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-32.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-33.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-34.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-35.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-36.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-37.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-38.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-39.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-40.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-41.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-42.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-43.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-44.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-45.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-46.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-47.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-48.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-49.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-50.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-51.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-52.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-53.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-54.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-55.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-56.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-57.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-58.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-59.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-60.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-61.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-62.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-63.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-64.png)<!-- -->![](01-data_files/figure-gfm/plot-micro-65.png)<!-- -->
 
 The table reveals that this dataset is too costly for the downstream
 analysis, so we’d like to bin the data first to reduce the complexity of
@@ -359,9 +373,9 @@ for (file_name in file_name){
   new_name <- substr(file_name,start = 43, stop = 58)
   data <- read.FCS(file_name,alter.names = T,transformation=F)
   if (month=="Feb") { MoFloA_Feb_data[[new_name]] <- data}
-  else if (month=="Mar") {MoFloA_Mar_data[[new_name]] <- data}
-  else if (month=="Nov") {MoFloA_Nov_data[[new_name]] <- data}
-  else if (month=="Dec") {MoFloA_Dec_data[[new_name]] <- data}
+  #else if (month=="Mar") {MoFloA_Mar_data[[new_name]] <- data}
+  #else if (month=="Nov") {MoFloA_Nov_data[[new_name]] <- data}
+  #else if (month=="Dec") {MoFloA_Dec_data[[new_name]] <- data}
 }
 ```
 
@@ -372,6 +386,13 @@ was measured at signal channel FL4.
 markernames(MoFloA_Feb_data[[21]])
 ```
 
+    ##       Pulse.Width            FS.Lin            SS.Lin          FL.1.Lin 
+    ##     "Pulse Width"              "FS"              "SS"            "FL 1" 
+    ##          FL.2.Lin          FL.3.Lin          FL.4.Lin          FL.5.Lin 
+    ##            "FL 2"            "FL 3"            "FL 4"            "FL 5" 
+    ##          FL.6.Lin   Sort.Classifier 
+    ##            "FL 6" "Sort Classifier"
+
 This is an example that the variable was wrongly recorded. Therefore,
 before further analysis, we’d like to correct these mistakes.
 
@@ -379,10 +400,12 @@ before further analysis, we’d like to correct these mistakes.
 # remove the debris
 new_MoFloA_Feb <- list()
 
-for (i in c(1:20,22:30)) {
+for (i in 1:50) {
   data_name <- names(MoFloA_Feb_data)[i]
   data <- MoFloA_Feb_data[[i]]
-  sub <- data@exprs %>% as.data.frame() %>% dplyr::filter(FL.4.Log>200)
+  sub <- data@exprs %>% as.data.frame() 
+  colnames(sub)[c(2,7)]<- c("FS.Log","FL.4.Log") # correct the names
+  sub <- sub %>% dplyr::filter(FL.4.Log>200)
   sub <- as.matrix(sub)
   data@exprs <- sub
   new_MoFloA_Feb[[data_name]]<-data
@@ -390,18 +413,56 @@ for (i in c(1:20,22:30)) {
 ```
 
 ``` r
-for (i in 1:29){
+for (i in c(1:20,22:30,32:50)){
   data <- new_MoFloA_Feb[[i]]
-  p <- ggcyto(data, aes(x = "FS.Log", y = "FL.4.Log")) + geom_hex(bins = 128)
+  p <- ggcyto(data, aes(x = `FS.Log`, y = `FL.4.Log`)) + geom_hex(bins = 128)
   print(p)
 }
 ```
+
+![](01-data_files/figure-gfm/plot-micro2-1.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-2.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-3.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-4.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-5.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-6.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-7.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-8.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-9.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-10.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-11.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-12.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-13.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-14.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-15.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-16.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-17.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-18.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-19.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-20.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-21.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-22.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-23.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-24.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-25.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-26.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-27.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-28.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-29.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-30.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-31.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-32.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-33.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-34.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-35.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-36.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-37.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-38.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-39.png)<!-- -->
+
+    ## Warning: Computation failed in `stat_binhex()`
+    ## Caused by error in `if (diff(xbnds) <= 0) ...`:
+    ## ! missing value where TRUE/FALSE needed
+
+![](01-data_files/figure-gfm/plot-micro2-40.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-41.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-42.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-43.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-44.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-45.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-46.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-47.png)<!-- -->![](01-data_files/figure-gfm/plot-micro2-48.png)<!-- -->
 
 ## Seaflow
 
 ``` r
 seaflow <- readRDS(file="~/Desktop/paper-data/MGL1704-hourly-paper.RDS")
+seaflow_ylist <- seaflow$ylist
+seaflow_X <- seaflow$X
+
+print(paste("This dataset contains",length(seaflow_ylist),"time points."))
 ```
+
+    ## [1] "This dataset contains 296 time points."
+
+``` r
+print(paste("There are",ncol(seaflow_X),"environment variables."))
+```
+
+    ## [1] "There are 39 environment variables."
+
+Since this dataset has already binned into a list, former visualization
+methods for fcs files aren’t suitable anymore. So, we apply the basic
+scatter plots here to illustrate the relationship between cell size and
+the fluorescence.
+
+``` r
+for ( i in 1:296){
+  data <- seaflow_ylist[[i]] %>% as.data.frame()
+  data_name <- names(seaflow_ylist)[i]
+  p <- ggplot(data,aes(x=diam_mid,y=chl_small))+geom_hex(bins=32)+
+    scale_fill_gradient(low="blue",high="red")+
+    labs(x="FSC",y="Red fluorescence",title=data_name)
+  print(p)
+}
+```
+
+![](01-data_files/figure-gfm/plot-sea-1.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-2.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-3.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-4.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-5.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-6.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-7.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-8.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-9.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-10.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-11.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-12.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-13.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-14.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-15.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-16.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-17.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-18.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-19.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-20.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-21.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-22.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-23.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-24.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-25.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-26.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-27.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-28.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-29.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-30.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-31.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-32.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-33.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-34.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-35.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-36.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-37.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-38.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-39.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-40.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-41.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-42.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-43.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-44.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-45.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-46.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-47.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-48.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-49.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-50.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-51.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-52.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-53.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-54.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-55.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-56.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-57.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-58.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-59.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-60.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-61.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-62.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-63.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-64.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-65.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-66.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-67.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-68.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-69.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-70.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-71.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-72.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-73.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-74.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-75.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-76.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-77.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-78.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-79.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-80.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-81.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-82.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-83.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-84.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-85.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-86.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-87.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-88.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-89.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-90.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-91.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-92.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-93.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-94.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-95.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-96.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-97.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-98.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-99.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-100.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-101.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-102.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-103.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-104.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-105.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-106.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-107.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-108.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-109.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-110.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-111.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-112.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-113.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-114.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-115.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-116.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-117.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-118.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-119.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-120.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-121.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-122.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-123.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-124.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-125.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-126.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-127.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-128.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-129.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-130.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-131.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-132.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-133.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-134.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-135.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-136.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-137.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-138.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-139.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-140.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-141.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-142.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-143.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-144.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-145.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-146.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-147.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-148.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-149.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-150.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-151.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-152.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-153.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-154.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-155.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-156.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-157.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-158.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-159.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-160.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-161.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-162.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-163.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-164.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-165.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-166.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-167.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-168.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-169.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-170.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-171.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-172.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-173.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-174.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-175.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-176.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-177.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-178.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-179.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-180.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-181.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-182.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-183.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-184.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-185.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-186.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-187.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-188.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-189.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-190.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-191.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-192.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-193.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-194.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-195.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-196.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-197.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-198.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-199.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-200.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-201.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-202.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-203.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-204.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-205.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-206.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-207.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-208.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-209.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-210.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-211.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-212.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-213.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-214.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-215.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-216.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-217.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-218.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-219.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-220.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-221.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-222.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-223.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-224.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-225.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-226.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-227.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-228.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-229.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-230.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-231.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-232.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-233.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-234.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-235.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-236.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-237.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-238.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-239.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-240.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-241.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-242.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-243.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-244.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-245.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-246.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-247.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-248.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-249.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-250.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-251.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-252.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-253.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-254.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-255.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-256.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-257.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-258.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-259.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-260.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-261.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-262.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-263.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-264.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-265.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-266.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-267.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-268.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-269.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-270.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-271.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-272.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-273.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-274.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-275.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-276.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-277.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-278.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-279.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-280.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-281.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-282.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-283.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-284.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-285.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-286.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-287.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-288.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-289.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-290.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-291.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-292.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-293.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-294.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-295.png)<!-- -->![](01-data_files/figure-gfm/plot-sea-296.png)<!-- -->
 
 ## Files written
 
