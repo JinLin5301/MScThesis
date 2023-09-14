@@ -18,3 +18,4 @@ You can install the development version of MScThesis from
 install.packages("devtools")
 devtools::install_github("JinLin5301/MScThesis")
 ```
+A line from local computer
