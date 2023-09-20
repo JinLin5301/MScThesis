@@ -1,6 +1,12 @@
 02a-flowEMMi for Z-project
 ================
-Compiled at 2023-08-22 00:00:55 UTC
+Compiled at 2023-09-20 20:02:15 UTC
+
+``` r
+here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
+```
+
+The purpose of this document is …
 
 ``` r
 library("conflicted")
@@ -8,13 +14,57 @@ library(purrr)
 library(dplyr)
 library(mvtnorm)
 library(flowEMMi)
+```
+
+    ## For detailed instructions please run browseVignettes('flowEMMi').
+    ##   For an overview of available functions please run library(help='flowEMMi')
+
+``` r
 library(flowCore)
 library(flowWorkspace)
+```
+
+    ## As part of improvements to flowWorkspace, some behavior of
+    ## GatingSet objects has changed. For details, please read the section
+    ## titled "The cytoframe and cytoset classes" in the package vignette:
+    ## 
+    ##   vignette("flowWorkspace-Introduction", "flowWorkspace")
+
+``` r
 library(ggcyto)
-library(ggforce)
+```
+
+    ## Loading required package: ggplot2
+
+    ## Loading required package: ncdfFlow
+
+    ## Loading required package: BH
+
+``` r
 library(tidyverse)
+```
+
+    ## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+    ## ✔ forcats   1.0.0     ✔ stringr   1.5.0
+    ## ✔ lubridate 1.9.2     ✔ tibble    3.2.1
+    ## ✔ readr     2.1.4     ✔ tidyr     1.3.0
+
+``` r
 library(RColorBrewer)
 library(knitr)
+library(ellipse)
+library(ggforce)
+```
+
+``` r
+# create or *empty* the target directory, used to write this file's data: 
+projthis::proj_create_dir_target(params$name, clean = TRUE)
+
+# function to get path to target directory: path_target("sample.csv")
+path_target <- projthis::proj_path_target(params$name)
+
+# function to get path to previous data: path_source("00-import", "sample.csv")
+path_source <- projthis::proj_path_source(params$name)
 ```
 
 ## Z-project
@@ -22,11 +72,11 @@ library(knitr)
 ### Import preprocessed data
 
 ``` r
-DAPI <- readRDS("~/Desktop/MScThesis/workflow/data/new_DAPI.rds")
+DAPI <- readRDS("~/MSc_new_data/new_DAPI.rds")
 
-FDA_PI <- readRDS("~/Desktop/MScThesis/workflow/data/new_FDA_PI.rds")
+FDA_PI <- readRDS("~/MSc_new_data/new_FDA_PI.rds")
 
-gating_DAPI <- readRDS("~/Desktop/z_gating_list.rds")
+gating_DAPI<- readRDS("~/MSc_new_data/z_gating_list.rds")
 ```
 
 ### flowEMMI gating on DAPI
@@ -38,9 +88,9 @@ samples are mostly concentrated in the range of 20000 to 60000.
 Therefore, we will run the automated gating on surrounding region and
 other regions respectively.
 
--   Setting range for other regions: 20000-50000
+- Setting range for other regions: 20000-50000
 
--   Setting range for Surrounding region: 1000-50000
+- Setting range for Surrounding region: 1000-50000
 
 ``` r
 set.seed(1)
@@ -136,7 +186,7 @@ maha_result <- list()
 for (x in 1:5){
   data <- DAPI[[x]]@exprs[,c(11,27)]
   
-  mu <- split(gating_DAPI[[x]]@mu,seq_len(ncol(gating_DAPI[[x]]@mu)))
+  mu <- gating_DAPI[[x]]@mu
   sigma <- gating_DAPI[[x]]@sigma
   
   n_cells <- nrow(data)
@@ -145,7 +195,7 @@ for (x in 1:5){
   
   for (i in 1:n_cells){
     for (j in 1:n_cluster){
-      maha_data[i,j] <- mahalanobis(data[i,],mu[[j]],sigma[[j]])
+      maha_data[i,j] <- mahalanobis(data[i,],mu[,j],sigma[[j]])
     }
   }
   maha_result[[x]] <- maha_data
@@ -158,20 +208,37 @@ for (i in 1:5){
   coln <- ncol(maha1)
   maha <- maha1[,2:coln] %>% as.data.frame()
   
-  # set 50 as distance cutoff
+  threshold <- c()
+  
+  for (col in 1:coln-1){
+    quantile <- quantile(as.numeric(maha[,col]),0.95)
+    threshold <- c(threshold,quantile)
+  }
+  
+  threshold <- min(threshold[-1])
+  
+  # set threshold as distance cutoff
   for (j in 1:nrow(maha)){
     rv <- maha[j,1:ncol(maha)-1]
-    if(all(rv>50)) { maha$Min[j] <- NA}
+    if(all(rv>threshold)) { maha$Min[j] <- NA}
     else {maha$Min[j] <- which.min(rv)}
   }
 
-  maha_result[[i]] <- maha
+  maha_result[[i]] <- cbind(DAPI[[i]]@exprs[,c(11,27)],maha)
   
-  table <-table(maha[,ncol(maha)]) %>% 
+  mu <- gating_DAPI[[i]]@mu
+  
+  test <- table(maha[,ncol(maha)]) %>% as.data.frame()
+  coordinates <- sprintf("(%.2f,%.2f)",mu[1,2:ncol(mu)],mu[2,2:ncol(mu)])
+  test <- cbind(test,coordinates)
+  
+  
+  table <-test %>% 
     kable(caption = paste0(location[i],"_DAPI"),
-          col.names = c("No. of Cluster","Number of Cells"))
+          col.names = c("Cluster","Cells","Ellipse Center"))
   
   print(table)
+  print(paste0("For dataset ",location[i],"_DAPI, the threshold for mahalanobis distance is ",round(threshold,2)))
 }
 ```
 
@@ -179,52 +246,60 @@ for (i in 1:5){
     ## 
     ## Table: Inner_zone_DAPI
     ## 
-    ## |No. of Cluster | Number of Cells|
-    ## |:--------------|---------------:|
-    ## |1              |             166|
-    ## |3              |             103|
-    ## |4              |           42485|
-    ## |5              |             848|
+    ## |Cluster | Cells|Ellipse Center      |
+    ## |:-------|-----:|:-------------------|
+    ## |1       |  1527|(28643.76,29223.22) |
+    ## |2       |  8893|(30501.61,29286.30) |
+    ## |3       |  8434|(34464.78,37187.99) |
+    ## |4       |  5813|(44075.53,22164.24) |
+    ## |5       | 25124|(32221.87,33886.38) |
+    ## [1] "For dataset Inner_zone_DAPI, the threshold for mahalanobis distance is 176.4"
     ## 
     ## 
     ## Table: Middle_zone_DAPI
     ## 
-    ## |No. of Cluster | Number of Cells|
-    ## |:--------------|---------------:|
-    ## |2              |           37248|
-    ## |3              |             571|
-    ## |4              |              13|
-    ## |6              |             183|
-    ## |7              |            2745|
-    ## |8              |            9143|
+    ## |Cluster | Cells|Ellipse Center      |
+    ## |:-------|-----:|:-------------------|
+    ## |1       |  1537|(45924.83,21291.97) |
+    ## |2       |  1798|(7760.03,6873.05)   |
+    ## |3       |  1919|(45580.01,36122.68) |
+    ## |4       | 21793|(34039.12,34394.37) |
+    ## |5       |  1883|(44693.51,24243.41) |
+    ## |6       |  6753|(32247.01,29787.40) |
+    ## |7       |  1611|(36404.83,21368.67) |
+    ## |8       | 13972|(44792.59,44473.96) |
+    ## [1] "For dataset Middle_zone_DAPI, the threshold for mahalanobis distance is 128.19"
     ## 
     ## 
     ## Table: Outer_zone_DAPI
     ## 
-    ## |No. of Cluster | Number of Cells|
-    ## |:--------------|---------------:|
-    ## |1              |           35059|
-    ## |2              |             239|
-    ## |3              |            7729|
+    ## |Cluster | Cells|Ellipse Center      |
+    ## |:-------|-----:|:-------------------|
+    ## |1       |  7676|(32438.31,29446.64) |
+    ## |2       | 24677|(33022.40,34211.25) |
+    ## |3       | 17210|(43440.71,44630.44) |
+    ## [1] "For dataset Outer_zone_DAPI, the threshold for mahalanobis distance is 50.26"
     ## 
     ## 
     ## Table: Whole_colony_DAPI
     ## 
-    ## |No. of Cluster | Number of Cells|
-    ## |:--------------|---------------:|
-    ## |1              |            7467|
-    ## |2              |           18573|
-    ## |3              |               2|
-    ## |4              |           16260|
-    ## |5              |           19211|
+    ## |Cluster | Cells|Ellipse Center      |
+    ## |:-------|-----:|:-------------------|
+    ## |1       | 32740|(34421.77,3491.33)  |
+    ## |2       | 12261|(24522.01,21377.52) |
+    ## |3       |  1455|(29308.42,40498.47) |
+    ## |4       | 26677|(34748.38,34888.12) |
+    ## |5       |  9746|(7285.92,2064.41)   |
+    ## [1] "For dataset Whole_colony_DAPI, the threshold for mahalanobis distance is 467.34"
     ## 
     ## 
     ## Table: Surrounding_DAPI
     ## 
-    ## |No. of Cluster | Number of Cells|
-    ## |:--------------|---------------:|
-    ## |1              |             660|
-    ## |2              |           35549|
+    ## |Cluster | Cells|Ellipse Center      |
+    ## |:-------|-----:|:-------------------|
+    ## |1       | 22234|(33941.44,33940.93) |
+    ## |2       | 27325|(45197.43,22018.91) |
+    ## [1] "For dataset Surrounding_DAPI, the threshold for mahalanobis distance is 227.25"
 
 ``` r
 # plot
@@ -239,33 +314,26 @@ for (i in 1:5){
   
   #ellipses generated by 
   plot1 <- ggplot(data,aes(x=PMT.1,y=PMT.9))+
-    geom_point(aes(color=Cluster))+geom_mark_ellipse(aes(color=Cluster))+
-    ggtitle(paste0(location[i],"_DAPI"),subtitle = "Auto-generated ellipses")
-  
-  print(plot1)
+    geom_point(aes(color=Cluster))+
+    ggtitle(paste0(location[i],"_DAPI"))
   
   #ellipses from flowEMMI result
   ellipses <- gating_DAPI[[i]]
   num_ellipse <- length(ellipses@sigma)
   
-  p <- plot(NULL,type="n",xlim=c(0,70000),ylim=c(0,70000),xlab="PMT.1",ylab="PMT.9")
-  
   for (j in 2:num_ellipse){
     mu <- ellipses@mu[,j]
     sigma <- ellipses@sigma[[j]]
     eli <- ellipse::ellipse(centre=mu,x=sigma,level=0.95,npoints=200) 
-    p <- p+lines(eli,type="l",col=j)
+    eli <- as.data.frame(eli)
+    colnames(eli)<- c("PMT.1","PMT.9")
+    plot1 <- plot1+geom_path(data = eli,aes(x=PMT.1,y=PMT.9),color=j)
   }
+  print(plot1)
 }
 ```
 
-    ## Warning: Using the `size` aesthetic in this geom was deprecated in ggplot2 3.4.0.
-    ## ℹ Please use `linewidth` in the `default_aes` field and elsewhere instead.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-5.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-6.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-7.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-8.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-9.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-10.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-plot-5.png)<!-- -->
 
 ## Files written
 
