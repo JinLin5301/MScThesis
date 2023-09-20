@@ -14,6 +14,10 @@ The purpose of this document is ...
 
 ```{r packages}
 library("conflicted")
+library(purrr)
+library(dplyr)
+library(flowCore)
+library(mclust)
 ```
 
 ```{r directories}
@@ -27,9 +31,61 @@ path_target <- projthis::proj_path_target(params$name)
 path_source <- projthis::proj_path_source(params$name)
 ```
 
-## Tasks
+## Import data
+```{r import}
+DAPI <- readRDS("~/Desktop/new_DAPI.rds")
+FDA_PI <- readRDS("~/Desktop/new_FDA_PI.rds")
+```
 
-The first task is ...
+Generate function body.
+
+```{r function}
+flowGMM <- function(data){
+  model1 <- Mclust(data)
+  summary(model1)
+
+  clusters1 <- predict(model1)
+  result1 <- cbind(data,Cluster=clusters1$classification)
+  result1 <- as.data.frame(result1)
+  result1$Cluster <- as.factor(result1$Cluster)
+  
+  result <- list(model=model1,parameter=model1$parameters,class_result=result1)
+  return(result)
+}
+```
+
+## DAPI
+
+```{r application}
+DAPI_GMM <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]@exprs[,c(11,27)]
+  data_name <- names(DAPI)[i]
+  DAPI_GMM[[data_name]]<-flowGMM(data)
+  
+  par(mar = c(3,3,1,1))
+  plot(DAPI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
+  plot(DAPI_GMM[[i]]$model,what="BIC",main=data_name,xlab="PMT.1",ylab="PMT.9")
+}
+
+```
+## FDA_PI
+
+```{r application2}
+FDA_PI_GMM <- list()
+
+for (i in 1:5){
+  data <- FDA_PI[[i]]@exprs[,c(11,15)]
+  data_name <- names(FDA_PI)[i]
+  FDA_PI_GMM[[data_name]]<-flowGMM(data)
+  
+  par(mar = c(3,3,1,1))
+  plot(FDA_PI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.3")
+  plot(FDA_PI_GMM[[i]]$model,what="BIC",main=data_name,xlab="PMT.1",ylab="PMT.3")
+}
+
+```
 
 ## Files written
 
