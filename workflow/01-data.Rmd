@@ -24,7 +24,7 @@ library(readxl)
 library(purrr)
 library(dplyr)
 library(flowCore)
-library(flowmix)
+#library(flowmix)
 library(flowWorkspace)
 library(ggcyto)
 library(tidyverse)
@@ -51,13 +51,13 @@ Z-project is focusing on a colony of Bacillus subtilis, lab exams the sub-popula
 
 ```{r import-z}
 # import data
-fcs.direction <- "~/Desktop/Z-Project Bacillus_pretest/fcs/"
+fcs.direction <- "~/MSc_raw_data/Z-Project Bacillus_pretest/fcs/"
 fcs.file.name <- list.files(fcs.direction,pattern = "\\.fcs$",full.names = T)
 z_fs <- list()
 
 for (i in fcs.file.name){
   data <- read.FCS(i,alter.names = T,transformation = F)
-  new_name <- substr(i,start = 55,stop=nchar(i))
+  new_name <- substr(i,start = 72,stop=nchar(i))
   z_fs[[new_name]] <- data
 }
 ```
@@ -98,12 +98,12 @@ for (i in 1:5) {
 ```
 
 ```{r save-z,eval=F,message=F}
-write.FCS(new_DAPI_fs,"~/Desktop/MScThesis/workflow/data/01-data/new_DAPI.fcs")
-write.FCS(new_FDA_PI_fs,"~/Desktop/MScThesis/workflow/data/01-data/new_FDA_PI.fcs")
+write.FCS(new_DAPI_fs,"~/MScThesis/workflow/data/01-data/new_DAPI.fcs")
+write.FCS(new_FDA_PI_fs,"~/MScThesis/workflow/data/01-data/new_FDA_PI.fcs")
 ```
 
 Now, let's have a look of cytograms from Z-project.
-```{r plot-z,echo=T}
+```{r plot-z}
 for (i in 1:5){
   data_name <- paste0(location[i],"_DAPI.fcs")
   data <- new_DAPI_fs[[data_name]]
@@ -143,35 +143,36 @@ D1, D2 and D3 were disturbed by a repeated and soft temperature stressor from 30
 
 Liu et. al sampled from all five reactors and analyzed them by flow cytometry. All raw data can be accessed by flowRepository (<https://flowrepository.org/>) under accession number: FR-FCM-ZYWX
 
-```{r import-micro,eval=F}
-reactor <- c("C1","C2","D1","D2","D3")
+```{r import-micro}
+# reactor <- c("C1","C2","D1","D2","D3")
+reactor <- c("C1")
 micro_data_list <- list()
 
 # get file path for each reactor
 for (i in reactor){
-  path <- "~/Desktop/FlowRepository_Liu/"
+  path <- "~/MSc_raw_data/FlowRepository_Liu/"
   path <- paste0(path,i,"/")
   file_name <- list.files(path,pattern = ".fcs$",full.names = T)
   for (j in file_name){
     data <- read.FCS(j,alter.names=T,transformation=F)
-    new_name <- substr(j,start=46,stop=60) # use nchar
+    new_name <- substr(j,start=63,stop=77) # use nchar 
     micro_data_list[[new_name]] <- data
   }
 }
 
 # optical data
-abio_data <- read_excel("~/Desktop/osfstorage/Data sheet for abiotic parameters.xlsx")
+abio_data <- read_excel("~/MSc_raw_data/Data sheet for abiotic parameters.xlsx")
 ```
 
 
-```{r micro1,eval=F}
+```{r micro1}
 markernames(micro_data_list[[1]])
 ```
 In this case, we're interested in the forwards scatter, indicated the cell size, named as PMT.1, and fluorescence DAPI, named as PMT.9. 
 
 So we could remove the debris now.
 
-```{r remove-micro,eval=F}
+```{r remove-micro}
 # remove the debris
 new_micro_data <- list()
 
@@ -189,7 +190,7 @@ for (i in 1:n_data) {
 
 After removing the debris, we'd like to separate the whole dataset into five subset, represented by the reactor names.
 
-```{r sep-micro,eval=FALSE}
+```{r sep-micro}
 # separate by reactor
 C1_data <- list()
 C2_data <- list()
@@ -208,38 +209,13 @@ for (i in names(micro_data_list)){
 }
 ```
 
-```{r c1, echo=F}
-path_Liu <- "~/Desktop/FlowRepository_Liu/C1/"
-file_name_Liu <- list.files(path_Liu,pattern = "\\.fcs$",full.names = T)
-C1_data <- list()
 
-for (i in file_name_Liu){
-  data <- read.FCS(i,alter.names = T,transformation = F)
-  new_name <- substr(i,start = 46,stop=60)
-  C1_data[[new_name]] <- data
-}
-```
+```{r plot-micro}
 
-
-```{r explanation-micro,echo=T}
-C1_dim <- matrix(NA,nrow=length(C1_data),ncol=3)
-
-for (i in seq_along(C1_data)){
-  name <- names(C1_data)[i]
-  C1_dim[i,1] <- name
-  C1_dim[i,2:3]<-dim(C1_data[[i]])
-}
-
-C1_dim <- as.data.frame(C1_dim)
-colnames(C1_dim) <- c("fcs file","records","variables") 
-print(C1_dim)
-```
-
-```{r plot-micro,echo=T}
 for (i in 1:65){
   data <- C1_data[[i]]
   p <- ggcyto(data, aes(x = "PMT.1", y = "PMT.9")) + geom_hex(bins = 128)
-  print(p,ncol=5)
+  print(p)
 }
 
 ```
@@ -248,7 +224,7 @@ The table reveals that this dataset is too costly for the downstream analysis, s
 
 Before doing the binning, we need to transfer the flowFrame to list first.
 
-```{r bin-micro,eval=F}
+```{r bin-micro,eval=FALSE}
 set.seed(0)
 micro_data_ylist <- list()
 grid_micro_ylist <- list()
@@ -266,7 +242,7 @@ for (i in seq_along(new_micro_data)){
 
 
 ```{r save-micro,eval=F}
-write.FCS(new_micro_data,"~/Desktop/MScThesis/workflow/data/01-data/new_micro_data.fcs")
+write.FCS(new_micro_data,"~/MScThesis/workflow/data/01-data/new_micro_data.fcs")
 ```
 
 ### Li et. al
@@ -274,7 +250,7 @@ write.FCS(new_micro_data,"~/Desktop/MScThesis/workflow/data/01-data/new_micro_da
 Five local microbiomes were grown for over 114 generations and connected by a loop. The flow cytometry raw data has been deposited in FlowRepository (<https://flowrepository.org/>) with accession number: FR-FCM-Z3MU
 
 ```{r import-micro2}
-folder_path <- "~/Desktop/FlowRepo/"
+folder_path <- "~/MSc_raw_data/FlowRepo_Li/"
 file_name <- list.files(folder_path,pattern = "\\.fcs$",full.names = T)
 MoFloA_Feb_data <- list()
 MoFloA_Mar_data <- list()
@@ -283,8 +259,8 @@ MoFloA_Dec_data <- list()
 
 # group files by the month
 for (file_name in file_name){
-  month <- substr(file_name,start = 46,stop = 48) # use nchar to locate
-  new_name <- substr(file_name,start = 43, stop = 58)
+  month <- substr(file_name,start = 66,stop = 68) # use nchar to locate 
+  new_name <- substr(file_name,start = 53, stop = 77)
   data <- read.FCS(file_name,alter.names = T,transformation=F)
   if (month=="Feb") { MoFloA_Feb_data[[new_name]] <- data}
   #else if (month=="Mar") {MoFloA_Mar_data[[new_name]] <- data}
@@ -296,7 +272,7 @@ for (file_name in file_name){
 
 From the instrumental setup, we could tell that the DAPI fluorescenece was measured at signal channel FL4.
 
-```{r micro21,echo=T}
+```{r micro21}
 markernames(MoFloA_Feb_data[[21]])
 ```
 
@@ -305,13 +281,27 @@ This is an example that the variable was wrongly recorded. Therefore, before fur
 ```{r remove-micro2}
 # remove the debris
 new_MoFloA_Feb <- list()
+Q_data <- c()
 
-for (i in 1:50) {
+for (i in 1:268) {
   data_name <- names(MoFloA_Feb_data)[i]
-  data <- MoFloA_Feb_data[[i]]
+  data1 <- MoFloA_Feb_data[[i]]
+  annodata <- data1@parameters@data
+  if(any(grepl("Lin",annodata[[1]]))){
+    Q_data <- c(Q_data,i)
+  }
+}
+
+print(paste0("This record needs to be removed: ",Q_data))
+
+new_MoFloA_Feb_data <- MoFloA_Feb_data[-Q_data]
+
+# removing debris
+for (i in 1:length(new_MoFloA_Feb_data)){
+  data_name <- names(new_MoFloA_Feb_data)[i]
+  data <- new_MoFloA_Feb_data[[i]]
   sub <- data@exprs %>% as.data.frame() 
-  colnames(sub)[c(2,7)]<- c("FS.Log","FL.4.Log") # correct the names
-  sub <- sub %>% dplyr::filter(FL.4.Log>200)
+  sub <- sub %>% dplyr::filter(FL.4.Log>200) 
   sub <- as.matrix(sub)
   data@exprs <- sub
   new_MoFloA_Feb[[data_name]]<-data
@@ -319,17 +309,24 @@ for (i in 1:50) {
 ```
 
 ```{r plot-micro2,echo=T}
-for (i in c(1:20,22:30,32:50)){
+
+for (i in 1:25){
   data <- new_MoFloA_Feb[[i]]
   p <- ggcyto(data, aes(x = `FS.Log`, y = `FL.4.Log`)) + geom_hex(bins = 128)
   print(p)
 }
+
+```
+
+
+```{r save-micro2,eval=F}
+write.FCS(new_MoFloA_Feb,"~/MScThesis/workflow/data/01-data/new_MoFloA_Feb.fcs")
 ```
 
 ## Seaflow
 
 ```{r seaflow}
-seaflow <- readRDS(file="~/Desktop/paper-data/MGL1704-hourly-paper.RDS")
+seaflow <- readRDS(file="~/MSc_raw_data/MGL1704-hourly-paper.RDS")
 seaflow_ylist <- seaflow$ylist
 seaflow_X <- seaflow$X
 
@@ -340,7 +337,7 @@ print(paste("There are",ncol(seaflow_X),"environment variables."))
 Since this dataset has already binned into a list, former visualization methods for fcs files aren't suitable anymore. So, we apply the basic scatter plots here to illustrate the relationship between cell size and the fluorescence.
 
 ```{r plot-sea,echo=T}
-for ( i in 1:296){
+for ( i in 1:20){
   data <- seaflow_ylist[[i]] %>% as.data.frame()
   data_name <- names(seaflow_ylist)[i]
   p <- ggplot(data,aes(x=diam_mid,y=chl_small))+geom_hex(bins=32)+
@@ -348,6 +345,41 @@ for ( i in 1:296){
     labs(x="FSC",y="Red fluorescence",title=data_name)
   print(p)
 }
+
+```
+
+In order to apply this dataset on other flow cytometry methods, we'd like to convert it into flowFrame object.
+
+```{r convert-seaflow}
+template <- z_fs[[1]]
+yname <- names(seaflow_ylist)
+
+sea_flowframe <- list()
+
+for (i in 1:296){
+  sea_flowframe <- c(sea_flowframe,template)
+  names(sea_flowframe)[i]<- yname[i]
+  sea_flowframe[[i]]@exprs <- seaflow_ylist[[i]]
+  annodata <- template@parameters@data[1:3,]
+  annodata[,1] <- c("diam_mid","chl_small","pe")
+  annodata[,2] <- c("diameter","prochlorococcus","<NA>")
+  annodata[,3] <- c(8,8,8)
+  annodata[,5] <- c(8,8,8)
+  sea_flowframe[[i]]@parameters@data <- annodata
+}
+```
+
+```{r plot-seaframe}
+for (i in 1:10){
+  data_name <- names(sea_flowframe)[i]
+  data <- sea_flowframe[[data_name]]
+  p <- ggcyto(data, aes(x = "diam_mid", y = "chl_small")) + geom_hex(bins = 128)+ggtitle(data_name)
+  print(p)
+}
+```
+
+```{r save-seaflow,eval=F}
+write.FCS(sea_flowframe,"~/MScThesis/workflow/data/01-data/sea_flowframe.fcs")
 ```
 
 ## Files written
