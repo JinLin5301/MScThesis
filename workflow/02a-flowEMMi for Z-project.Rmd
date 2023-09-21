@@ -228,6 +228,53 @@ for (i in 1:5){
 }
 ```
 
+## Mahalanobis distance function
+```{r}
+flowEMMi_mahalanobis <- function(data,gating_data){
+  mu <- gating_data@mu
+  sigma <- gating_data@sigma
+  
+  n_cells <- nrow(data)
+  n_clusters <- length(sigma)
+  
+  #generate mahalanobis matrix
+  maha_data <- matrix(NA,nrow=n_cells,ncol=n_clusters)
+  
+  for (i in 1:n_cells){
+    for(j in 1:n_clusters){
+      maha_data[i,j] <- mahalanobis(data[i,],mu[,j],sigma[[j]])
+    }
+  }
+  
+  #set 95% quantile as cutoff value
+  maha <- maha_data[,2:n_clusters] %>% as.data.frame()
+  threshold <- c()
+  
+  for (col in 1:n_clusters-1){
+    cutoff <- quantile(as.numeric(maha[,col]),0.95)
+    threshold <- c(threshold,cutoff)
+  }
+  
+  threshold <- min(threshold[-1])
+  
+  #determine cluster
+  for (cell in 1:n_cells){
+    rv <- maha[cell,1:n_clusters-1]
+    if(all(rv>threshold)) { maha$Cluster[cell] <- NA}
+    else { maha$Cluster[cell] <- which.min(rv)}
+  }
+  
+  maha_data2 <- cbind(data,maha)
+  
+  test <- table(maha[,ncol(maha)]) %>% as.data.frame()
+  coordinates <- sprintf("(%.2f,%.2f)",mu[1,2:ncol(mu)],mu[2,2:ncol(mu)])
+  test <- cbind(test,coordinates)
+  
+  maha_result <- list(maha_matrix=maha_data2,threshold=threshold,table_info=test)
+  return(maha_result)
+}
+```
+
 
 ## Files written
 
