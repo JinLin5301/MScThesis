@@ -35,13 +35,15 @@ path_source <- projthis::proj_path_source(params$name)
 ```{r import}
 DAPI <- readRDS("~/Desktop/new_DAPI.rds")
 FDA_PI <- readRDS("~/Desktop/new_FDA_PI.rds")
+gating_DAPI <- readRDS("~/Desktop/gating_DAPI.rds")
+gating_FDA_PI <- readRDS("~/Desktop/gating_FDA_PI.rds")
 ```
 
 Generate function body.
 
 ```{r function}
-flowGMM <- function(data){
-  model1 <- Mclust(data)
+flowGMM <- function(data,n_cluster){
+  model1 <- Mclust(data,G=n_cluster,modelNames = "VVV")
   summary(model1)
 
   clusters1 <- predict(model1)
@@ -62,11 +64,11 @@ DAPI_GMM <- list()
 for (i in 1:5){
   data <- DAPI[[i]]@exprs[,c(11,27)]
   data_name <- names(DAPI)[i]
-  DAPI_GMM[[data_name]]<-flowGMM(data)
+  n_cluster <- length(gating_DAPI[[i]]@sigma)
+  DAPI_GMM[[data_name]]<-flowGMM(data,n_cluster)
   
   par(mar = c(3,3,1,1))
   plot(DAPI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
-  plot(DAPI_GMM[[i]]$model,what="BIC",main=data_name,xlab="PMT.1",ylab="PMT.9")
 }
 
 ```
@@ -78,11 +80,11 @@ FDA_PI_GMM <- list()
 for (i in 1:5){
   data <- FDA_PI[[i]]@exprs[,c(11,15)]
   data_name <- names(FDA_PI)[i]
-  FDA_PI_GMM[[data_name]]<-flowGMM(data)
+  n_cluster <- length(gating_FDA_PI[[i]]@sigma)
+  FDA_PI_GMM[[data_name]]<-flowGMM(data,n_cluster)
   
   par(mar = c(3,3,1,1))
   plot(FDA_PI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.3")
-  plot(FDA_PI_GMM[[i]]$model,what="BIC",main=data_name,xlab="PMT.1",ylab="PMT.3")
 }
 
 ```
