@@ -132,7 +132,7 @@ In the above graphs, the ellipses are colored according to their cluster probabi
 
 ### Mahalanobis distance
 
-```{r maha-DAPI,message=FALSE}
+```{r maha-DAPI,message=FALSE,eval=F}
 maha_result <- list()
 
 for (x in 1:5){
@@ -183,11 +183,10 @@ for (i in 1:5){
           col.names = c("Cluster","Cells","Ellipse Center"))
   
   print(table)
-  print(paste0("For dataset ",location[i],"_DAPI, the threshold for mahalanobis distance is ",round(threshold,2)))
 }
 ```
 
-```{r maha-plot}
+```{r maha-plot,eval=F}
 # plot
 DAPI_maha_plot <- list()
 
@@ -282,8 +281,10 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   area <- area %>% as.data.frame()
   test <- cbind(test,area,coordinates)
-  colnames(test) <- c("Cluster","Cells","Area","Coordinate")
-  
+  table <- test %>% 
+    kable(caption = data_name,
+          col.names = c("Cluster","Cells","Area","Coordinate"))
+   
   #plot
   maha_data2$Cluster <- as.factor(maha_data2$Cluster)
   
@@ -303,10 +304,25 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
                   aes(x=!!sym(names[1]),y=!!sym(names[2])),color=j)
   }
   
-  maha_result <- list(maha_matrix=maha_data2,table_info=test,plot=plot1)
+  maha_result <- list(maha_matrix=maha_data2,table_info=table,plot=plot1)
   return(maha_result)
 }
 ```
+
+```{r}
+flowemmi_DAPI <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]@exprs[,c(11,27)]
+  data_name <- names(DAPI)[i]
+  gating_data <- gating_DAPI[[i]]
+  flowemmi_DAPI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.95)
+  print(flowemmi_DAPI[[i]]$table_info)
+  print(flowemmi_DAPI[[i]]$plot)
+}
+```
+
+
 
 ## Files written
 
