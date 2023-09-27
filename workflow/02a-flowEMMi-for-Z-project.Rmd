@@ -1,9 +1,9 @@
 ---
-title: "02a-flowEMMi for-Z-project"
+title: "02a-flowEMMi for Z-project"
 date: "Compiled at `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'UTC')` UTC"
 output: github_document
 params:
-  name: "02a-flowEMMi-for-Z-project" # change if you rename file
+  name: "02a-flowEMMi for Z-project" # change if you rename file
 ---
 
 ```{r here, message=FALSE}
@@ -19,6 +19,7 @@ library(dplyr)
 library(mvtnorm)
 library(flowEMMi)
 library(flowCore)
+library(flowWorkspace)
 library(ggcyto)
 library(tidyverse)
 library(RColorBrewer)
@@ -38,7 +39,7 @@ path_target <- projthis::proj_path_target(params$name)
 path_source <- projthis::proj_path_source(params$name)
 ```
 
-## Z-project
+## Z-project 
 
 ### Import preprocessed data
 
@@ -111,7 +112,6 @@ gating_DAPI[[5]] <- gating_sur$best
 ```
 
 ### Gating plots on DAPI
-
 ```{r plot-DAPI,message=FALSE}
 location <- c("Inner_zone","Middle_zone","Outer_zone","Whole_colony","Surrounding")
 gating_DAPI_plot <- list()
@@ -131,7 +131,6 @@ for (i in 1:5){
 In the above graphs, the ellipses are colored according to their cluster probability, high probability in red, medium probability in white, low probability in blue.
 
 ### Mahalanobis distance
-
 ```{r maha-DAPI,message=FALSE}
 maha_result <- list()
 
@@ -219,18 +218,7 @@ for (i in 1:5){
 }
 ```
 
-## Mahalanobis distance function with flowEMMi
-
-Following is the integrated function.
-
-Given a preprocessed dataset and the gating result from above, it can generate the:
-
--   Mahalanobis distance matrix & Cluster result
-
--   Parameter table: Number of cells in each cluster, Area of the clustering ellipse, and the Coordinates of center
-
--   Gating plots
-
+## Mahalanobis distance function
 ```{r}
 flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
@@ -267,22 +255,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   test <- table(maha[,ncol(maha)]) %>% as.data.frame()
   coordinates <- sprintf("(%.2f,%.2f)",mu[1,2:ncol(mu)],mu[2,2:ncol(mu)])
-  
-  #Area of Ellipse
-  eigen <- matrix(NA,nrow=length(sigma),ncol=2)
-  for (i in 1:length(sigma)){
-    eigen[i,] <- eigen(sigma[[i]])$values
-  }
-  eigen <- eigen[-1,]
-  
-  area <- matrix(NA,nrow=nrow(eigen),ncol=1)
-  for (i in 1:nrow(eigen)){
-    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])
-  }
-  
-  area <- area %>% as.data.frame()
-  test <- cbind(test,area,coordinates)
-  colnames(test) <- c("Cluster","Cells","Area","Coordinate")
+  test <- cbind(test,coordinates)
   
   #plot
   maha_data2$Cluster <- as.factor(maha_data2$Cluster)
@@ -308,9 +281,10 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
 }
 ```
 
+
 ## Files written
 
-These files have been written to the target directory, `r paste0("data/", params$name)`:
+These files have been written to the target directory, ```r paste0("data/", params$name)```:
 
 ```{r list-files-target}
 projthis::proj_dir_info(path_target())
