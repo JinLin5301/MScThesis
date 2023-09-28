@@ -3,7 +3,7 @@ title: "02c-flowEMMi on Liu data"
 date: "Compiled at `r format(Sys.time(), '%Y-%m-%d %H:%M:%S', tz = 'UTC')` UTC"
 output: github_document
 params:
-  name: "02c-flowEMMi on Liu data" # change if you rename file
+  name: "02c-flowEMMi-on-Liu-data" # change if you rename file
 ---
 
 ```{r here, message=FALSE}
