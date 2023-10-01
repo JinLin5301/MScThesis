@@ -1,6 +1,6 @@
 02a-flowEMMi for-Z-project
 ================
-Compiled at 2023-09-27 21:52:53 UTC
+Compiled at 2023-10-01 14:00:31 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
@@ -298,7 +298,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   maha <- maha_data[,2:n_clusters] %>% as.data.frame()
   
   #set 95% quantile as cutoff value
-  threshold <- (-2*log(1-alpha))^2
+  threshold <- -2*log(1-alpha)
   
   #determine cluster
   for (cell in 1:n_cells){
@@ -321,7 +321,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   area <- matrix(NA,nrow=nrow(eigen),ncol=1)
   for (i in 1:nrow(eigen)){
-    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])
+    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
   }
   
   area <- area %>% as.data.frame()
@@ -342,7 +342,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   for (j in 2:num_ellipse){
     mu <- gating_data@mu[,j]
     sigma <- gating_data@sigma[[j]]
-    eli <- ellipse::ellipse(centre=mu,x=sigma,level=0.95,npoints=200) 
+    eli <- ellipse::ellipse(centre=mu,x=sigma,level=alpha,npoints=200) 
     eli <- as.data.frame(eli)
     colnames(eli)<- names
     plot1 <- plot1+geom_path(data = eli,
@@ -371,10 +371,10 @@ for (i in 1:5){
     ## 
     ## Table: Inner_zone_DAPI.fcs
     ## 
-    ## |Cluster | Cells|    Area|Coordinate          |
-    ## |:-------|-----:|-------:|:-------------------|
-    ## |1       | 13160| 2532838|(30167.85,29230.80) |
-    ## |2       |  2769| 8053710|(43911.46,23224.19) |
+    ## |Cluster | Cells|     Area|Coordinate          |
+    ## |:-------|-----:|--------:|:-------------------|
+    ## |1       |  8545| 15175410|(30167.85,29230.80) |
+    ## |2       |  1689| 48253516|(43911.46,23224.19) |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
@@ -382,12 +382,12 @@ for (i in 1:5){
     ## 
     ## Table: Middle_zone_DAPI.fcs
     ## 
-    ## |Cluster | Cells|    Area|Coordinate          |
-    ## |:-------|-----:|-------:|:-------------------|
-    ## |1       |  1467| 3196472|(36365.59,21846.61) |
-    ## |2       | 21541| 1304691|(34085.22,34371.43) |
-    ## |3       |  4803| 9876381|(45263.90,23994.94) |
-    ## |4       |  8473| 3345811|(32839.19,30095.37) |
+    ## |Cluster | Cells|     Area|Coordinate          |
+    ## |:-------|-----:|--------:|:-------------------|
+    ## |1       |  1155| 19151548|(36365.59,21846.61) |
+    ## |2       | 15307|  7817008|(34085.22,34371.43) |
+    ## |3       |  3082| 59173988|(45263.90,23994.94) |
+    ## |4       |  4703| 20046310|(32839.19,30095.37) |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
 
@@ -395,11 +395,11 @@ for (i in 1:5){
     ## 
     ## Table: Outer_zone_DAPI.fcs
     ## 
-    ## |Cluster | Cells|      Area|Coordinate          |
-    ## |:-------|-----:|---------:|:-------------------|
-    ## |1       | 26808| 1348901.9|(33020.97,34213.14) |
-    ## |2       |  7949| 2416321.3|(32506.72,29437.35) |
-    ## |3       |   344|  771055.4|(29304.09,40409.62) |
+    ## |Cluster | Cells|     Area|Coordinate          |
+    ## |:-------|-----:|--------:|:-------------------|
+    ## |1       | 17819|  8081898|(33020.97,34213.14) |
+    ## |2       |  4074| 14477303|(32506.72,29437.35) |
+    ## |3       |   232|  4619751|(29304.09,40409.62) |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->
 
@@ -407,12 +407,12 @@ for (i in 1:5){
     ## 
     ## Table: Surrounding_DAPI.fcs
     ## 
-    ## |Cluster | Cells|       Area|Coordinate          |
-    ## |:-------|-----:|----------:|:-------------------|
-    ## |1       | 10304| 10640233.6|(25975.69,21847.05) |
-    ## |2       | 14688|  1349130.7|(34589.90,34715.69) |
-    ## |3       |  1476|   968468.4|(29311.44,40500.45) |
-    ## |4       |  2325|  3845193.1|(22125.31,25532.17) |
+    ## |Cluster | Cells|     Area|Coordinate          |
+    ## |:-------|-----:|--------:|:-------------------|
+    ## |1       |  4792| 63750583|(25975.69,21847.05) |
+    ## |2       |  9255|  8083269|(34589.90,34715.69) |
+    ## |3       |  1325|  5802544|(29311.44,40500.45) |
+    ## |4       |  1426| 23038338|(22125.31,25532.17) |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
 
@@ -420,14 +420,14 @@ for (i in 1:5){
     ## 
     ## Table: Whole_colony_DAPI.fcs
     ## 
-    ## |Cluster | Cells|       Area|Coordinate          |
-    ## |:-------|-----:|----------:|:-------------------|
-    ## |1       |    47|   660568.9|(3077.87,1911.78)   |
-    ## |2       |   287|  5809990.7|(20203.14,25677.31) |
-    ## |3       | 18278|  1345407.4|(34582.00,34716.91) |
-    ## |4       |   340|  1013331.3|(29308.43,40497.37) |
-    ## |5       |  6703| 16642613.7|(24986.19,21556.94) |
-    ## |6       |   523|  2482614.4|(9702.70,1635.15)   |
+    ## |Cluster | Cells|     Area|Coordinate          |
+    ## |:-------|-----:|--------:|:-------------------|
+    ## |1       |    21|  3957775|(3077.87,1911.78)   |
+    ## |2       |    52| 34810353|(20203.14,25677.31) |
+    ## |3       |  6624|  8060961|(34582.00,34716.91) |
+    ## |4       |   275|  6071338|(29308.43,40497.37) |
+    ## |5       |   244| 99713630|(24986.19,21556.94) |
+    ## |6       |   126| 14874496|(9702.70,1635.15)   |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->
 

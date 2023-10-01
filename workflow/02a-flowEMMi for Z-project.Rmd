@@ -253,7 +253,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   maha <- maha_data[,2:n_clusters] %>% as.data.frame()
   
   #set 95% quantile as cutoff value
-  threshold <- (-2*log(1-alpha))^2
+  threshold <- -2*log(1-alpha)
   
   #determine cluster
   for (cell in 1:n_cells){
@@ -276,7 +276,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   area <- matrix(NA,nrow=nrow(eigen),ncol=1)
   for (i in 1:nrow(eigen)){
-    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])
+    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
   }
   
   area <- area %>% as.data.frame()
@@ -297,7 +297,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   for (j in 2:num_ellipse){
     mu <- gating_data@mu[,j]
     sigma <- gating_data@sigma[[j]]
-    eli <- ellipse::ellipse(centre=mu,x=sigma,level=0.95,npoints=200) 
+    eli <- ellipse::ellipse(centre=mu,x=sigma,level=alpha,npoints=200) 
     eli <- as.data.frame(eli)
     colnames(eli)<- names
     plot1 <- plot1+geom_path(data = eli,
