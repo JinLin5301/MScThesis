@@ -1,6 +1,6 @@
 02a-flowEMMi for-Z-project
 ================
-Compiled at 2023-10-10 20:45:08 UTC
+Compiled at 2023-10-11 08:00:09 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
@@ -144,11 +144,10 @@ gating_DAPI[[5]] <- gating_sur$best
 ### Gating plots on DAPI
 
 ``` r
-location <- c("Inner_zone","Middle_zone","Outer_zone","Whole_colony","Surrounding")
 gating_DAPI_plot <- list()
 
 for (i in 1:5){
-  data_name <- paste0(location[i],"_DAPI.fcs")
+  data_name <- names(DAPI)[i]
   data <- DAPI[[i]]
   plots <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
                             logScale = F, results = gating_DAPI[[i]],
@@ -324,10 +323,12 @@ for (i in 1:5){
     ## 
     ## |Cluster | Cells|     Area|Coordinate          |
     ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |  4270| 49000087|(25975.69,21847.05) |
-    ## |2       |  8499|  6212976|(34589.90,34715.69) |
-    ## |3       |  1256|  4459962|(29311.44,40500.45) |
-    ## |4       |  1239| 17707769|(22125.31,25532.17) |
+    ## |1       |  1208|  3042032|(3077.87,1911.78)   |
+    ## |2       |  1792| 26755996|(20203.14,25677.31) |
+    ## |3       |  8489|  6195830|(34582.00,34716.91) |
+    ## |4       |  1272|  4666563|(29308.43,40497.37) |
+    ## |5       |  5328| 76642068|(24986.19,21556.94) |
+    ## |6       |  3662| 11432862|(9702.70,1635.15)   |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
 
@@ -337,12 +338,10 @@ for (i in 1:5){
     ## 
     ## |Cluster | Cells|     Area|Coordinate          |
     ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |    15|  3042032|(3077.87,1911.78)   |
-    ## |2       |    31| 26755996|(20203.14,25677.31) |
-    ## |3       |  5105|  6195830|(34582.00,34716.91) |
-    ## |4       |   259|  4666563|(29308.43,40497.37) |
-    ## |5       |   177| 76642068|(24986.19,21556.94) |
-    ## |6       |   103| 11432862|(9702.70,1635.15)   |
+    ## |1       |   125| 49000087|(25975.69,21847.05) |
+    ## |2       |  5142|  6212976|(34589.90,34715.69) |
+    ## |3       |   257|  4459962|(29311.44,40500.45) |
+    ## |4       |    32| 17707769|(22125.31,25532.17) |
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->
 
@@ -405,27 +404,34 @@ for (i in 1:5){
 }
 ```
 
+After computing the sum of cells’ number and the ellipse volume at
+different confidence intervals, we can now plot the ROC curves to
+compare the trade-off tendency for different locations.
+
 ``` r
 # plot
 
 plot.points <- data.frame()
+plot.scale.points <- data.frame()
 
 for (i in 1:5){
   data <- roc.result[[i]]
   data[1,] <- c(0,0)
   
-  for (n in 1:nrow(data)){
-    data[n,1] <- data[n,1]/data[nrow(data),1]
-    data[n,2] <- data[n,2]/data[nrow(data),2]
-  }
-  
   data$location <- substr(names(DAPI)[i],1,nchar(names(DAPI)[i])-9) %>% as.factor()
   plot.points <- rbind(plot.points,data)
+  
+  plot.scale.points <- plot.points
+  
+  for (j in 1:nrow(plot.points)){
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    }
 }
 
 print(ggplot(plot.points, aes(x = volume, y = cell, color = location)) +
     geom_step(size = 1) +
-    labs(x = "volume", y = "cell", title = "DAPI ROC-curve") +
+    labs(x = "volume", y = "cell", title = "DAPI ROC-curve", subtitle = "Without scaling") +
     theme_minimal())
 ```
 
@@ -436,6 +442,15 @@ print(ggplot(plot.points, aes(x = volume, y = cell, color = location)) +
     ## generated.
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/roc-plot-1.png)<!-- -->
+
+``` r
+print(ggplot(plot.scale.points, aes(x = volume, y = cell, color = location)) +
+    geom_step(size = 1) +
+    labs(x = "volume", y = "cell", title = "DAPI ROC-curve", subtitle = "Scaled by max number over all locations") +
+    theme_minimal())
+```
+
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/roc-plot-2.png)<!-- -->
 
 ## Files written
 

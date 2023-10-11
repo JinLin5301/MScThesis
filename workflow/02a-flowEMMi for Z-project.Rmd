@@ -115,11 +115,10 @@ gating_DAPI[[5]] <- gating_sur$best
 ### Gating plots on DAPI
 
 ```{r plot-DAPI,message=FALSE}
-location <- c("Inner_zone","Middle_zone","Outer_zone","Whole_colony","Surrounding")
 gating_DAPI_plot <- list()
 
 for (i in 1:5){
-  data_name <- paste0(location[i],"_DAPI.fcs")
+  data_name <- names(DAPI)[i]
   data <- DAPI[[i]]
   plots <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
                             logScale = F, results = gating_DAPI[[i]],
@@ -282,7 +281,7 @@ flowroc <- function(data,gating_data,ci){
 
 
 
-```{r roc2,eval=F}
+```{r roc2}
 roc.result <- list()
 
 # calculate roc points
@@ -299,32 +298,37 @@ for (i in 1:5){
 
 ```
 
-```{r,echo=F}
-roc.result <- readRDS("~/Desktop/roc.rds")
-```
-
+After computing the sum of cells' number and the ellipse volume at different confidence intervals, we can now plot the ROC curves to compare the trade-off tendency for different locations.
 
 ```{r roc-plot}
 # plot
 
 plot.points <- data.frame()
+plot.scale.points <- data.frame()
 
 for (i in 1:5){
   data <- roc.result[[i]]
   data[1,] <- c(0,0)
   
-  for (n in 1:nrow(data)){
-    data[n,1] <- data[n,1]/data[nrow(data),1]
-    data[n,2] <- data[n,2]/data[nrow(data),2]
-  }
-  
   data$location <- substr(names(DAPI)[i],1,nchar(names(DAPI)[i])-9) %>% as.factor()
   plot.points <- rbind(plot.points,data)
+  
+  plot.scale.points <- plot.points
+  
+  for (j in 1:nrow(plot.points)){
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    }
 }
 
 print(ggplot(plot.points, aes(x = volume, y = cell, color = location)) +
     geom_step(size = 1) +
-    labs(x = "volume", y = "cell", title = "DAPI ROC-curve") +
+    labs(x = "volume", y = "cell", title = "DAPI ROC-curve", subtitle = "Without scaling") +
+    theme_minimal())
+
+print(ggplot(plot.scale.points, aes(x = volume, y = cell, color = location)) +
+    geom_step(size = 1) +
+    labs(x = "volume", y = "cell", title = "DAPI ROC-curve", subtitle = "Scaled by max number over all locations") +
     theme_minimal())
 ```
 
