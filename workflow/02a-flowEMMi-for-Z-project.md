@@ -1,6 +1,6 @@
 02a-flowEMMi for-Z-project
 ================
-Compiled at 2023-10-19 06:55:19 UTC
+Compiled at 2023-10-24 23:25:08 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
@@ -21,8 +21,8 @@ library(RColorBrewer)
 library(knitr)
 library(ellipse)
 library(ggforce)
-library(ROCR)
 library(ggplot2)
+library(ggpubr)
 ```
 
 ``` r
@@ -36,43 +36,51 @@ path_target <- projthis::proj_path_target(params$name)
 path_source <- projthis::proj_path_source(params$name)
 ```
 
-## Z-project
-
-### Import preprocessed data
+## Import preprocessed data
 
 ``` r
 DAPI <- readRDS("~/Desktop/MSc_new_data/new_DAPI.rds")
-gating_DAPI <- readRDS("~/Desktop/MSc_new_data/gating_DAPI.rds")
+FDA_PI <- readRDS("~/Desktop/MSc_new_data/new_FDA_PI.rds")
 ```
 
-### flowEMMI gating on DAPI
+## DAPI
 
-Based on the scatter plot in 01-data, we could tell that except for the
-sample taken in the surrounding region, the cells of other region
-samples are mostly concentrated in the range of 20000 to 60000.
+Based on the scatter plot in 01-data, after removing the debris, the
+channels for automated gating are between 200 and 65535. Therefore, we
+will run the flowEMMI v2 at \[0,70000\].
 
-Therefore, we will run the automated gating on surrounding region and
-other regions respectively.
+This is a complete code on how to perform clustering using flowEMMI. You
+can obtain gating results for interested variables by changing the
+“channel”.
 
-- Setting range for other regions: 20000-50000
+- PMT.1 stands for FSC, reveals cell size and shape
 
-- Setting range for Surrounding region: 1000-50000
+- PMT.2 stands for SSC, reveals intracellular complexity
+
+- PMT.3 stands for FDA_PI stain
+
+- PMT.9 stands for DAPI stain
+
+### flowEMMI gating on individual region
+
+For the samples dyed by DAPI, we would like to mainly focus on the
+gating results based on FSC and DAPI, namely PMT.1 and PMT.9.
 
 ``` r
 set.seed(1)
-location <- c("Inner_zone","Middle_zone","Outer_zone","Whole_colony","Surrounding")
+location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
 gating_DAPI <- list()
 
-for (i in 1:4){
+for (i in 1:5){
   data_name <- paste0(location[i],"_DAPI.fcs")
   data <- DAPI[[i]]
   fdo <- mkFlowDataObject(data, xChannel="PMT.1", yChannel="PMT.9")
-  gating <- flowEMMi( fdo=fdo, xMin=20000, xMax=50000, yMin=20000, yMax=50000
+  gating <- flowEMMi( fdo=fdo, xMin=0, xMax=70000, yMin=0, yMax=70000
                       , initFraction=0.01
                       , finalFraction=1.0
                       , minClusters=5, maxClusters=15, clusterbracket=2
                       , numberOfInits=5
-                      , verbose=TRUE
+                      , verbose=FALSE
                       , parallel=FALSE
                       , convergenceEpsilon=0.01
                       , whenToRemoveOverlaps = 20
@@ -84,33 +92,11 @@ for (i in 1:4){
                       , plot = FALSE
                       , alpha=0.9
                       , minMinor=500)
-  gating_DAPI[[i]] <- gating$best
+  gating_DAPI[[data_name]] <- gating$best
 }
-
-# DAPI surrounding
-DAPI_sur <- DAPI[["Surrounding_DAPI.fcs"]] 
-fdo_sur <- mkFlowDataObject(DAPI_sur, xChannel="PMT.1", yChannel="PMT.9")
-gating_sur <- flowEMMi( fdo=fdo_sur, xMin=1000, xMax=50000, yMin=1000, yMax=50000
-                      , initFraction=0.01
-                      , finalFraction=1.0
-                      , minClusters=5, maxClusters=15, clusterbracket=2
-                      , numberOfInits=5
-                      , verbose=TRUE
-                      , parallel=FALSE
-                      , convergenceEpsilon=0.01
-                      , whenToRemoveOverlaps = 20
-                      , mergeWhenCenter = FALSE
-                      , mergeWhenTwoCenters = FALSE
-                      , thresholdForDeletion = 0.2
-                      , threshold = 0.9
-                      , considerWeights=TRUE
-                      , plot = FALSE
-                      , alpha=0.9
-                      , minMinor=500)
-gating_DAPI[[5]] <- gating_sur$best
 ```
 
-### Gating plots on DAPI
+### Gating plots
 
 ``` r
 gating_DAPI_plot <- list()
@@ -142,6 +128,75 @@ for (i in 1:5){
 In the above graphs, the ellipses are colored according to their cluster
 probability, high probability in red, medium probability in white, low
 probability in blue.
+
+## Metaclustering
+
+In order to get meta-clustering results, we merge all gating results
+regardless of regions, then run the flowEMMI v2 to remove the overlap
+ellipses.
+
+``` r
+#PMT.1--Forward Scatter--col11
+#PMT.9--Fluor. DAPI--col27
+
+all_data <- DAPI[[1]]@exprs[,c(11,27)]
+all_gate <- gating_DAPI[[1]]
+
+  for (i in 2:5){
+    mu <- gating_DAPI[[i]]@mu[,-1]
+    sigma <- gating_DAPI[[i]]@sigma[-1]
+    prob <- gating_DAPI[[i]]@clusterProbs[-1]
+    all_gate@mu <- cbind(all_gate@mu,mu)
+    all_gate@sigma <- c(all_gate@sigma,sigma)
+    all_gate@clusterProbs <- c(all_gate@clusterProbs,prob)
+    
+    data <- DAPI[[i]]@exprs[,c(11,27)]
+    all_data <- rbind(all_data,data)
+}
+
+Gating_DAPI_meta <- removeOverlaps(em=all_gate, alpha=0.9
+                                  , mergeWhenCenter = FALSE
+                                  , mergeWhenTwoCenters = FALSE
+                                  , thresholdForDeletion = 0.2
+                                  , threshold = 0.9
+                                  , shrinkingFunction=shrinkEllipses
+                                  , considerWeights=TRUE
+                                  , plot = FALSE
+                                  , minMinor = 500)
+```
+
+### Meta-gating plots
+
+Now, we’d like to illustrate the meta-clustering effects on different
+regions.
+
+``` r
+gating_DAPI_meta_plot <- list()
+
+for (i in 1:5){
+  data_name <- names(DAPI)[i]
+  data <- DAPI[[i]]
+  plots <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
+                            logScale = F, results = Gating_DAPI_meta,
+                            title = paste0("Meta-clustering on ",data_name), 
+                            plotRelevance = T,
+                            ellipseDotSize = 0.5, axis_size=10, axisLabeling_size=10,
+                            xlab = "Forward Scatter", ylab = "DAPI", font = "Arial")
+  gating_DAPI_meta_plot[[i]] <- plots$plot
+}
+```
+
+    ## Warning in KernSmooth::bkde2D(x, bandwidth = bandwidth, gridsize = nbin, :
+    ## Binning grid too coarse for current (small) bandwidth: consider increasing
+    ## 'gridsize'
+
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-1.png)<!-- -->
+
+    ## Warning in KernSmooth::bkde2D(x, bandwidth = bandwidth, gridsize = nbin, :
+    ## Binning grid too coarse for current (small) bandwidth: consider increasing
+    ## 'gridsize'
+
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-5.png)<!-- -->
 
 ## Mahalanobis distance function with flowEMMi
 
@@ -209,15 +264,17 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   area <- area %>% as.data.frame()
   test <- cbind(test,area,coordinates)
   colnames(test) <- c("Cluster","Cells","Area","Coordinate")
-  table <- test %>% 
-    kable(caption = data_name,
-          col.names = c("Cluster","Cells","Area","Coordinate"))
+
+  #table <- gt(test) %>%
+    #tab_header(title = data_name) %>%
+    #tab_spanner(label="Cell",columns = c(Local,Meta)) %>%
+    #tab_spanner(label="Area",columns = c(Local,Meta))
    
   #plot
   maha_data2$Cluster <- as.factor(maha_data2$Cluster)
   
   plot1 <- ggplot(maha_data2,aes(x=!!sym(names[1]),y=!!sym(names[2]),color=Cluster))+
-    geom_point()+
+    geom_point(alpha=1/5)+
     ggtitle(data_name)
   
   num_ellipse <- length(gating_data@sigma)
@@ -232,20 +289,38 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
                   aes(x=!!sym(names[1]),y=!!sym(names[2])),color=j)
   }
   
-  maha_result <- list(maha_matrix=maha_data2,table_info=test,table_print=table,plot=plot1)
+  maha_result <- list(maha_matrix=maha_data2,table_info=test,plot=plot1)
   return(maha_result)
 }
 ```
 
+### Maha-dist tables and plots
+
+Based on the above functions, we substitute preprocessed dataset and
+gating results to generate tables and images for different regions. The
+tables list the number of cells in each cluster and the size of the
+ellipses for each cluster.
+
 ``` r
+# FSC vs. DAPI
 flowemmi_DAPI <- list()
+flowemmi_meta_DAPI <- list()
 
 for (i in 1:5){
   data_name <- names(DAPI)[i]
   data <- DAPI[[i]]@exprs[,c(11,27)]
   gating_data <- gating_DAPI[[i]]
   flowemmi_DAPI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.9)
-  print(flowemmi_DAPI[[data_name]]$table_print)
+  
+  dname <- paste0("Meta_",data_name)
+  flowemmi_meta_DAPI[[data_name]] <- flowEMMi_mahalanobis(data,dname,Gating_DAPI_meta,0.9)
+  
+  
+  # visualization
+  table <- flowemmi_DAPI[[data_name]]$table_info %>% 
+    kable(caption = data_name,
+          col.names = c("Cluster","Cells","Area","Coordinate"))
+  print(table)
   print(flowemmi_DAPI[[data_name]]$plot)
 }
 ```
@@ -254,25 +329,28 @@ for (i in 1:5){
     ## 
     ## Table: Inner_zone_DAPI.fcs
     ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |  7964| 11664150|(30167.85,29230.80) |
-    ## |2       |  1556| 37088704|(43911.46,23224.19) |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |  1924|  64940976|(44068.67,22214.89) |
+    ## |2       |  5745|  28517326|(34508.86,37132.78) |
+    ## |3       |  7301|   9118643|(30135.10,29239.51) |
+    ## |4       |   287| 266969505|(13113.82,13340.39) |
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-DAPI-1.png)<!-- -->
 
     ## 
     ## 
     ## Table: Middle_zone_DAPI.fcs
     ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |  1062| 14720297|(36365.59,21846.61) |
-    ## |2       | 14019|  6008322|(34085.22,34371.43) |
-    ## |3       |  2804| 45482417|(45263.90,23994.94) |
-    ## |4       |  4152| 15408031|(32839.19,30095.37) |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |  4040| 109598151|(45341.40,24468.17) |
+    ## |2       |  3114|  19361723|(34078.42,39261.36) |
+    ## |3       |  1252|  23677489|(36406.85,21350.10) |
+    ## |4       |  1279| 630732384|(10804.55,7450.08)  |
+    ## |5       | 14523|   6447073|(34090.24,34336.18) |
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-DAPI-2.png)<!-- -->
 
     ## 
     ## 
@@ -280,120 +358,41 @@ for (i in 1:5){
     ## 
     ## |Cluster | Cells|     Area|Coordinate          |
     ## |:-------|-----:|--------:|:-------------------|
-    ## |1       | 16320|  6211923|(33020.97,34213.14) |
-    ## |2       |  3645| 11127571|(32506.72,29437.35) |
-    ## |3       |   221|  3550841|(29304.09,40409.62) |
+    ## |1       |  4100| 14034849|(32629.73,29461.09) |
+    ## |2       | 16245|  6100359|(33022.67,34199.10) |
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-DAPI-3.png)<!-- -->
 
     ## 
     ## 
     ## Table: Surrounding_DAPI.fcs
     ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |  1208|  3042032|(3077.87,1911.78)   |
-    ## |2       |  1792| 26755996|(20203.14,25677.31) |
-    ## |3       |  8489|  6195830|(34582.00,34716.91) |
-    ## |4       |  1272|  4666563|(29308.43,40497.37) |
-    ## |5       |  5328| 76642068|(24986.19,21556.94) |
-    ## |6       |  3662| 11432862|(9702.70,1635.15)   |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |  6423|  97911164|(22301.25,23160.50) |
+    ## |2       |   769|   1657887|(47995.42,54558.40) |
+    ## |3       |  6187|  20486355|(3293.45,1339.81)   |
+    ## |4       |  1274|   4689991|(29312.96,40500.45) |
+    ## |5       |  1625| 275461724|(49369.61,4051.60)  |
+    ## |6       | 10579|  10701222|(34685.62,34728.35) |
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-DAPI-4.png)<!-- -->
 
     ## 
     ## 
     ## Table: Whole_colony_DAPI.fcs
     ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |   125| 49000087|(25975.69,21847.05) |
-    ## |2       |  5142|  6212976|(34589.90,34715.69) |
-    ## |3       |   257|  4459962|(29311.44,40500.45) |
-    ## |4       |    32| 17707769|(22125.31,25532.17) |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |  9310|   7848511|(33986.65,33933.71) |
+    ## |2       |  6797| 179194231|(45715.23,29438.35) |
+    ## |3       |  3745|  16960857|(33105.32,29302.90) |
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->
-
-## Clustering on different channels
-
-We denote above sections to reveal the clustering results focusing on
-Forward Scatter (PMT.1) and fluorescence DAPI (PMT.9).
-
-Next, we’d like to explore the clustering results based on other channel
-selection, namely Forward Scatter vs. Side Scatter (PMT.2), and Side
-Scatter vs. fluorescence DAPI.
-
-### Forward Scatter vs. Side Scatter
-
-Gating range for regions: 0-60000
-
-``` r
-set.seed(1)
-location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
-gating_DAPI12 <- list()
-
-
-for (i in 1:5){
-  data_name <- paste0(location[i],"_DAPI.fcs")
-  data <- DAPI[[i]]
-  fdo <- mkFlowDataObject(data, xChannel="PMT.1", yChannel="PMT.2")
-  gating <- flowEMMi( fdo=fdo, xMin=0, xMax=60000, yMin=0, yMax=60000
-                      , initFraction=0.01
-                      , finalFraction=1.0
-                      , minClusters=5, maxClusters=15, clusterbracket=2
-                      , numberOfInits=5
-                      , verbose=TRUE
-                      , parallel=FALSE
-                      , convergenceEpsilon=0.01
-                      , whenToRemoveOverlaps = 20
-                      , mergeWhenCenter = FALSE
-                      , mergeWhenTwoCenters = FALSE
-                      , thresholdForDeletion = 0.2
-                      , threshold = 0.9
-                      , considerWeights=TRUE
-                      , plot = FALSE
-                      , alpha=0.9
-                      , minMinor=500)
-  gating_DAPI12[[i]] <- gating$best
-}
-```
-
-### Side Scatter vs. Fluorescence DAPI
-
-``` r
-set.seed(1)
-location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
-gating_DAPI29 <- list()
-
-
-for (i in 5){
-  data_name <- paste0(location[i],"_DAPI.fcs")
-  data <- DAPI[[i]]
-  fdo <- mkFlowDataObject(data, xChannel="PMT.2", yChannel="PMT.9")
-  gating <- flowEMMi( fdo=fdo, xMin=0, xMax=60000, yMin=0, yMax=60000
-                      , initFraction=0.01
-                      , finalFraction=1.0
-                      , minClusters=5, maxClusters=15, clusterbracket=2
-                      , numberOfInits=5
-                      , verbose=TRUE
-                      , parallel=FALSE
-                      , convergenceEpsilon=0.01
-                      , whenToRemoveOverlaps = 20
-                      , mergeWhenCenter = FALSE
-                      , mergeWhenTwoCenters = FALSE
-                      , thresholdForDeletion = 0.2
-                      , threshold = 0.9
-                      , considerWeights=TRUE
-                      , plot = FALSE
-                      , alpha=0.9
-                      , minMinor=500)
-  gating_DAPI29[[i]] <- gating$best
-}
-```
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/maha-DAPI-5.png)<!-- -->
 
 ## ROC
 
-In the following section, we will ues the ROC curves to reflect the
+In the following section, we will ues the ROC-like curves to reflect the
 relationship between the number of cells contained in each cluster and
 their corresponding ellipse sizes, involving comparisons between
 different sampling positions.
@@ -439,29 +438,42 @@ flowroc <- function(data,gating_data,ci){
 }
 ```
 
+Calculate ellipse sizes and included cell numbers at different alpha
+levels.
+
 ``` r
 roc.result <- list()
+roc.meta.result <- list()
 
-# calculate roc points
+# FSC vs. DAPI
+# using gating results on each region
 for (i in 1:5){
   data_name <- names(DAPI)[i]
   data <- flowemmi_DAPI[[data_name]]$maha_matrix
   
-  dname <- substr(data_name,1,nchar(data_name)-9)
-  gating_data <- gating_DAPI[[dname]]
+  gating_data <- gating_DAPI[[data_name]]
   alpha <- seq(0.01,0.99,0.01)
   
   roc.result[[data_name]] <- flowroc(data,gating_data,alpha)
 }
+
+# using meta-gating on each region
+for (i in 1:5){
+  data_name <- names(DAPI)[i]
+  data <- flowemmi_meta_DAPI[[data_name]]$maha_matrix
+  alpha <- seq(0.01,0.99,0.01)
+  
+  roc.meta.result[[data_name]] <- flowroc(data,Gating_DAPI_meta,alpha)
+}
 ```
 
 After computing the sum of cells’ number and the ellipse volume at
-different confidence intervals, we can now plot the ROC curves to
+different confidence intervals, we can now plot the ROC-like curves to
 compare the trade-off tendency for different locations.
 
 ``` r
 # plot
-plot.roc <- function(roc_result,plot_title){
+plot_point <- function(roc_result){
   
   plot.points <- data.frame()
   plot.scale <- data.frame()
@@ -490,113 +502,89 @@ plot.roc <- function(roc_result,plot_title){
   for (j in 1:nrow(plot.points)){
     plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
     plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
-    }
+   }
   }
   
-  #return(raw.point=plot.points,reginal.scaled=plot.scale,all.scaled=plot.scale.points)
+  points <- list(raw.point=plot.points,regional.scaled=plot.scale,all.scaled=plot.scale.points)
+  return(points)
+}
+```
 
-  print(ggplot(plot.points, aes(x = volume, y = cell, color = location)) +
-    geom_line() +
-    labs(x = "volume", y = "cell", title = plot_title, subtitle = "Without scaling") +
-    theme_minimal())
+### Different regions
 
-  print(ggplot(plot.scale, aes(x = volume, y = cell, color = location)) +
-    geom_line() +
-    labs(x = "volume", y = "cell", title = plot_title, subtitle = "Scaled by each regional maximum") +
-    theme_minimal())
+``` r
+# FSC vs. DAPI as example
+p1 <- plot_point(roc_19)
 
-  print(ggplot(plot.scale.points, aes(x = volume, y = cell, color = location)) +
-    geom_line() +
-    labs(x = "volume", y = "cell", title = plot_title, subtitle = "Scaled by max number over all regions") +
+ggplot(p1$raw.point,aes(x=volume,y=cell,color=location))+
+  geom_line()+labs(x="volume",y="cell",title="FSC vs. DAPI",subtitle = "Without Scaling")+
+  theme_minimal()
+```
+
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-location-1.png)<!-- -->
+
+``` r
+ggplot(p1$regional.scaled,aes(x=volume,y=cell,color=location))+
+  geom_line()+labs(x="volume",y="cell",title="FSC vs. DAPI",subtitle = "Regional maximum scaling")+
+  theme_minimal()
+```
+
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-location-2.png)<!-- -->
+
+``` r
+ggplot(p1$all.scaled,aes(x=volume,y=cell,color=location))+
+  geom_line()+labs(x="volume",y="cell",title="FSC vs. DAPI",subtitle = "Global maximum scaling")+
+  theme_minimal()
+```
+
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-location-3.png)<!-- -->
+
+### Different channels
+
+``` r
+channels <- c("roc_12","roc_19","roc_29")
+names<-c("FSC vs. SSC","FSC vs. DAPI","SSC vs. DAPI")
+points <- list()
+
+for (i in 1:3){
+  data <- get(channels[i])
+  roc <- plot_point(data)
+  name <- names[i]
+  
+  print(ggplot(roc$raw.point,aes(x=volume,y=cell,color=location))+
+    geom_line()+labs(x="volume",y="cell",title=name,subtitle = "Without Scaling")+
     theme_minimal())
 }
 ```
 
-``` r
-plot.roc12 <- plot.roc(roc_12,"DAPI ROC: FSC vs. SSC")
-```
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-channel-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-channel-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-channel-3.png)<!-- -->
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-3.png)<!-- -->
+### Gating vs. meta-clustering
 
 ``` r
-plot.roc29 <- plot.roc(roc_29,"DAPI ROC: SSC vs. DAPI")
-```
+location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
+point <- list()
 
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-5.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-6.png)<!-- -->
+p1 <- plot_point(roc_19)
+p2 <- plot_point(roc_meta_19)
 
-``` r
-plot.roc19 <- plot.roc(roc_19,"DAPI ROC: FSC vs. DAPI")
-```
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-7.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-8.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-4-9.png)<!-- -->
-
-## Metaclustering
-
-In order to get meta-clustering results, firstly we merge all gating
-results regardless of regions, then run the flowEMMI package to remove
-the overlap ellipses.
-
-Next, we compute the mahalanobis distance and roc curves.
-
-``` r
-#PMT.1--Forward Scatter--col11
-#PMT.2--Side Scatter--col13
-#PMT.9--Fluor. DAPI--col27
-
-all_data <- DAPI[[1]]@exprs[,c(11,27)]
-all_gate <- gating_DAPI[[1]]
-
-  for (i in 2:5){
-    mu <- gating_DAPI[[i]]@mu[,-1]
-    sigma <- gating_DAPI[[i]]@sigma[-1]
-    prob <- gating_DAPI[[i]]@clusterProbs[-1]
-    all_gate@mu <- cbind(all_gate@mu,mu)
-    all_gate@sigma <- c(all_gate@sigma,sigma)
-    all_gate@clusterProbs <- c(all_gate@clusterProbs,prob)
-    
-    data <- DAPI[[i]]@exprs[,c(11,27)]
-    all_data <- rbind(all_data,data)
+for (i in location){
+  data1 <- p1$raw.point %>% dplyr::filter(location==i)
+  data2 <- p2$raw.point %>% dplyr::filter(location==i)
+  
+  data1$type <- "gating"
+  data2$type <- "meta-clustering"
+  
+  data <- rbind(data1,data2)
+  
+  print(ggplot(data,aes(x=volume,y=cell,color=type))+
+    geom_line()+labs(x="volume",y="cell",title=i,
+                     subtitle = "FSC vs. DAPI \nWithout Scaling")+
+    theme_minimal())
 }
-
-new_all_gate <- removeOverlaps(em=all_gate, alpha=0.9
-                                  , mergeWhenCenter = FALSE
-                                  , mergeWhenTwoCenters = FALSE
-                                  , thresholdForDeletion = 0.2
-                                  , threshold = 0.9
-                                  , shrinkingFunction=shrinkEllipses
-                                  , considerWeights=TRUE
-                                  , plot = FALSE
-                                  , minMinor = 500)
-
-maha_all <- flowEMMi_mahalanobis(all_data,"Meta-cluster",new_all_gate,0.9)
-print(maha_all$table_print)
 ```
 
-    ## 
-    ## 
-    ## Table: Meta-cluster
-    ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |   488|  2589973|(43911.46,23224.19) |
-    ## |2       |  2026| 14720297|(36365.59,21846.61) |
-    ## |3       |   774|  3044001|(45263.90,23994.94) |
-    ## |4       |  1273|  3042032|(3077.87,1911.78)   |
-    ## |5       |   505|  4407964|(20203.14,25677.31) |
-    ## |6       |  3936| 11432862|(9702.70,1635.15)   |
-    ## |7       |   294|  2769528|(22125.31,25532.17) |
-    ## |8       |  4903| 57464561|(25676.99,21764.72) |
-
-``` r
-print(maha_all$plot)
-```
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
-
-``` r
-#alpha <- seq(0.01,0.99,0.01)
-#roc_all <- flowroc(maha_all$maha_matrix,new_all_gate,alpha)
-```
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-meta-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-meta-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-meta-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-meta-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-meta-5.png)<!-- -->
 
 ## Files written
 
