@@ -24,7 +24,6 @@ library(readxl)
 library(purrr)
 library(dplyr)
 library(flowCore)
-#library(flowmix)
 library(flowWorkspace)
 library(ggcyto)
 library(tidyverse)
@@ -51,13 +50,13 @@ Z-project is focusing on a colony of Bacillus subtilis, lab exams the sub-popula
 
 ```{r import-z}
 # import data
-fcs.direction <- "~/MSc_raw_data/Z-Project Bacillus_pretest/fcs/"
+fcs.direction <- "~/Desktop/Z-Project_Bacillus_pretest/fcs/"
 fcs.file.name <- list.files(fcs.direction,pattern = "\\.fcs$",full.names = T)
 z_fs <- list()
 
 for (i in fcs.file.name){
   data <- read.FCS(i,alter.names = T,transformation = F)
-  new_name <- substr(i,start = 72,stop=nchar(i))
+  new_name <- substr(i,start = 55,stop=nchar(i))
   z_fs[[new_name]] <- data
 }
 ```
@@ -66,9 +65,11 @@ for (i in fcs.file.name){
 markernames(z_fs[[2]])
 ```
 
-DAPI, FDA, PI are common fluorescent dyes which are excited with 488nm and measured with 460/50nm, 530/40nm, 616/23nm respectively. 
+DAPI, FDA are common fluorescent dyes which are excited with 488nm and measured with 460/50nm, 530/40nm respectively. 
 
-Based on above table, the relationship between fluorescent dyes and variables are: DAPI-PMT.9, FDA-PMT.3, PI-PMT.5.
+Based on above table, the relationship between fluorescent dyes and variables are: DAPI-PMT.9, FDA-PMT.3.
+
+这里要写删了什么东西
 
 ```{r debris-z}
 location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
@@ -80,7 +81,7 @@ new_FDA_PI_fs <- list()
 for (i in 1:5) {
   data_name <- paste0(location[i],"_DAPI.fcs")
   data <- z_fs[[data_name]]
-  sub <- data@exprs %>% as.data.frame() %>% dplyr::filter(PMT.1>200) %>% dplyr::filter(PMT.9>200)
+  sub <- data@exprs %>% as.data.frame() %>% dplyr::filter(PMT.1>200) %>% dplyr::filter(PMT.2>200)  %>% dplyr::filter(PMT.9>200)
   sub <- as.matrix(sub)
   data@exprs <- sub
   new_DAPI_fs[[data_name]]<-data
@@ -89,7 +90,7 @@ for (i in 1:5) {
 for (i in 1:5) {
   data_name <- paste0(location[i],"_FDA_PI.fcs")
   data <- z_fs[[data_name]]
-  sub <- data@exprs %>% as.data.frame() %>% dplyr::filter(PMT.1>200) %>% dplyr::filter(PMT.3>200) %>% dplyr::filter(PMT.5>200)
+  sub <- data@exprs %>% as.data.frame() %>% dplyr::filter(PMT.1>200) %>% dplyr::filter(PMT.2>200) %>% dplyr::filter(PMT.3>200)
   sub <- as.matrix(sub)
   data@exprs <- sub
   new_FDA_PI_fs[[data_name]]<-data
@@ -98,8 +99,8 @@ for (i in 1:5) {
 ```
 
 ```{r save-z,eval=F,message=F}
-write.FCS(new_DAPI_fs,"~/MScThesis/workflow/data/01-data/new_DAPI.fcs")
-write.FCS(new_FDA_PI_fs,"~/MScThesis/workflow/data/01-data/new_FDA_PI.fcs")
+write_rds(new_DAPI_fs,"~/Desktop/new_DAPI.rds")
+write_rds(new_FDA_PI_fs,"~/Desktop/new_FDA_PI.rds")
 ```
 
 Now, let's have a look of cytograms from Z-project.
