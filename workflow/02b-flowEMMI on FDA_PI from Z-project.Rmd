@@ -65,7 +65,7 @@ for (i in 1:5){
   data_name <- paste0(location[i],"_FDA_PI.fcs")
   data <- FDA_PI[[i]]
   fdo <- mkFlowDataObject(data, xChannel="PMT.1", yChannel="PMT.3")
-  gating <- flowEMMi( fdo=fdo, xMin=1000, xMax=60000, yMin=1000, yMax=60000
+  gating <- flowEMMi( fdo=fdo, xMin=0, xMax=70000, yMin=0, yMax=70000
                       , initFraction=0.01
                       , finalFraction=1.0
                       , minClusters=5, maxClusters=15, clusterbracket=2
@@ -117,7 +117,6 @@ Given a preprocessed dataset and the gating result from above, it can generate t
 
 -   Gating plots
 
-
 ```{r}
 flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
@@ -141,7 +140,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   maha <- maha_data[,2:n_clusters] %>% as.data.frame()
   
   #set 95% quantile as cutoff value
-  threshold <- (-2*log(1-alpha))^2
+  threshold <- -2*log(1-alpha)
   
   #determine cluster
   for (cell in 1:n_cells){
@@ -164,20 +163,23 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   area <- matrix(NA,nrow=nrow(eigen),ncol=1)
   for (i in 1:nrow(eigen)){
-    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])
+    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
   }
   
   area <- area %>% as.data.frame()
   test <- cbind(test,area,coordinates)
-  table <- test %>% 
-    kable(caption = data_name,
-          col.names = c("Cluster","Cells","Area","Coordinate"))
+  colnames(test) <- c("Cluster","Cells","Area","Coordinate")
+
+  #table <- gt(test) %>%
+    #tab_header(title = data_name) %>%
+    #tab_spanner(label="Cell",columns = c(Local,Meta)) %>%
+    #tab_spanner(label="Area",columns = c(Local,Meta))
    
   #plot
   maha_data2$Cluster <- as.factor(maha_data2$Cluster)
   
   plot1 <- ggplot(maha_data2,aes(x=!!sym(names[1]),y=!!sym(names[2]),color=Cluster))+
-    geom_point()+
+    geom_point(alpha=1/5)+
     ggtitle(data_name)
   
   num_ellipse <- length(gating_data@sigma)
@@ -185,28 +187,34 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   for (j in 2:num_ellipse){
     mu <- gating_data@mu[,j]
     sigma <- gating_data@sigma[[j]]
-    eli <- ellipse::ellipse(centre=mu,x=sigma,level=0.95,npoints=200) 
+    eli <- ellipse::ellipse(centre=mu,x=sigma,level=alpha,npoints=200) 
     eli <- as.data.frame(eli)
     colnames(eli)<- names
     plot1 <- plot1+geom_path(data = eli,
                   aes(x=!!sym(names[1]),y=!!sym(names[2])),color=j)
   }
   
-  maha_result <- list(maha_matrix=maha_data2,table_info=table,plot=plot1)
+  maha_result <- list(maha_matrix=maha_data2,table_info=test,plot=plot1)
   return(maha_result)
 }
+
 ```
 
-```{r}
+```{r plot-maha}
 flowemmi_FDA_PI <- list()
 
 for (i in 1:5){
-  data <- FDA_PI[[i]]@exprs[,c(11,15)]
   data_name <- names(FDA_PI)[i]
+  data <- FDA_PI[[i]]@exprs[,c(11,15)]
   gating_data <- gating_FDA_PI[[i]]
-  flowemmi_FDA_PI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.95)
-  print(flowemmi_FDA_PI[[i]]$table_info)
-  print(flowemmi_FDA_PI[[i]]$plot)
+  flowemmi_FDA_PI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.9)
+  
+  # visualization
+  table <- flowemmi_FDA_PI[[data_name]]$table_info %>% 
+    kable(caption = data_name,
+          col.names = c("Cluster","Cells","Area","Coordinate"))
+  print(table)
+  print(flowemmi_FDA_PI[[data_name]]$plot)
 }
 ```
 

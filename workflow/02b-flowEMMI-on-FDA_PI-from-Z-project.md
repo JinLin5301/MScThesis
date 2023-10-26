@@ -1,6 +1,6 @@
 02b-flowEMMI on FDA_PI from Z-project
 ================
-Compiled at 2023-09-27 21:58:51 UTC
+Compiled at 2023-10-26 10:15:28 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "ce529353-7643-4521-8dc9-35a25f812de1")
@@ -44,7 +44,7 @@ library(tidyverse)
 
     ## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
     ## ✔ forcats   1.0.0     ✔ stringr   1.5.0
-    ## ✔ lubridate 1.9.2     ✔ tibble    3.2.1
+    ## ✔ lubridate 1.9.3     ✔ tibble    3.2.1
     ## ✔ readr     2.1.4     ✔ tidyr     1.3.0
 
 ``` r
@@ -183,7 +183,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   maha <- maha_data[,2:n_clusters] %>% as.data.frame()
   
   #set 95% quantile as cutoff value
-  threshold <- (-2*log(1-alpha))^2
+  threshold <- -2*log(1-alpha)
   
   #determine cluster
   for (cell in 1:n_cells){
@@ -206,20 +206,23 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   area <- matrix(NA,nrow=nrow(eigen),ncol=1)
   for (i in 1:nrow(eigen)){
-    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])
+    area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
   }
   
   area <- area %>% as.data.frame()
   test <- cbind(test,area,coordinates)
-  table <- test %>% 
-    kable(caption = data_name,
-          col.names = c("Cluster","Cells","Area","Coordinate"))
+  colnames(test) <- c("Cluster","Cells","Area","Coordinate")
+
+  #table <- gt(test) %>%
+    #tab_header(title = data_name) %>%
+    #tab_spanner(label="Cell",columns = c(Local,Meta)) %>%
+    #tab_spanner(label="Area",columns = c(Local,Meta))
    
   #plot
   maha_data2$Cluster <- as.factor(maha_data2$Cluster)
   
   plot1 <- ggplot(maha_data2,aes(x=!!sym(names[1]),y=!!sym(names[2]),color=Cluster))+
-    geom_point()+
+    geom_point(alpha=1/5)+
     ggtitle(data_name)
   
   num_ellipse <- length(gating_data@sigma)
@@ -227,14 +230,14 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   for (j in 2:num_ellipse){
     mu <- gating_data@mu[,j]
     sigma <- gating_data@sigma[[j]]
-    eli <- ellipse::ellipse(centre=mu,x=sigma,level=0.95,npoints=200) 
+    eli <- ellipse::ellipse(centre=mu,x=sigma,level=alpha,npoints=200) 
     eli <- as.data.frame(eli)
     colnames(eli)<- names
     plot1 <- plot1+geom_path(data = eli,
                   aes(x=!!sym(names[1]),y=!!sym(names[2])),color=j)
   }
   
-  maha_result <- list(maha_matrix=maha_data2,table_info=table,plot=plot1)
+  maha_result <- list(maha_matrix=maha_data2,table_info=test,plot=plot1)
   return(maha_result)
 }
 ```
@@ -243,12 +246,17 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
 flowemmi_FDA_PI <- list()
 
 for (i in 1:5){
-  data <- FDA_PI[[i]]@exprs[,c(11,15)]
   data_name <- names(FDA_PI)[i]
+  data <- FDA_PI[[i]]@exprs[,c(11,15)]
   gating_data <- gating_FDA_PI[[i]]
-  flowemmi_FDA_PI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.95)
-  print(flowemmi_FDA_PI[[i]]$table_info)
-  print(flowemmi_FDA_PI[[i]]$plot)
+  flowemmi_FDA_PI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.9)
+  
+  # visualization
+  table <- flowemmi_FDA_PI[[data_name]]$table_info %>% 
+    kable(caption = data_name,
+          col.names = c("Cluster","Cells","Area","Coordinate"))
+  print(table)
+  print(flowemmi_FDA_PI[[data_name]]$plot)
 }
 ```
 
@@ -256,28 +264,23 @@ for (i in 1:5){
     ## 
     ## Table: Inner_zone_FDA_PI.fcs
     ## 
-    ## |Cluster | Cells|        Area|Coordinate          |
-    ## |:-------|-----:|-----------:|:-------------------|
-    ## |1       |  8644|    750346.6|(34342.30,54379.35) |
-    ## |2       | 32205|   3020618.7|(34505.45,50486.47) |
-    ## |3       |  2272|  10030909.7|(44862.67,31712.44) |
-    ## |4       |  5060| 179762426.9|(21949.57,11431.48) |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |  3594| 818442864|(19595.59,10728.79) |
+    ## |2       |  1838|  46335074|(44870.52,31676.26) |
 
-![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/plot-maha-1.png)<!-- -->
 
     ## 
     ## 
     ## Table: Middle_zone_FDA_PI.fcs
     ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       | 26756|  4694396|(35605.99,57083.86) |
-    ## |2       |  2429| 11608940|(45918.96,26554.53) |
-    ## |3       |  1220| 11631408|(33867.98,16704.77) |
-    ## |4       |  1815| 24816958|(4941.35,8150.46)   |
-    ## |5       | 17812| 19817643|(34366.51,33916.52) |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |   823| 119368442|(3654.85,7891.90)   |
+    ## |2       |  1987|  57042626|(45868.74,26659.03) |
 
-![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->
+![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/plot-maha-2.png)<!-- -->
 
     ## 
     ## 
@@ -285,23 +288,26 @@ for (i in 1:5){
     ## 
     ## |Cluster | Cells|      Area|Coordinate          |
     ## |:-------|-----:|---------:|:-------------------|
-    ## |1       | 44422|  18808340|(33281.33,31577.91) |
-    ## |2       |  4329| 130033033|(15417.65,10506.33) |
+    ## |1       |  2901|  89808795|(33293.04,31672.00) |
+    ## |2       |  3818| 613252482|(14550.96,10313.60) |
+    ## |3       |   166|  45374181|(49959.64,64711.82) |
 
-![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->
+![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/plot-maha-3.png)<!-- -->
 
     ## 
     ## 
     ## Table: Surrounding_FDA_PI.fcs
     ## 
-    ## |Cluster | Cells|     Area|Coordinate          |
-    ## |:-------|-----:|--------:|:-------------------|
-    ## |1       |  1440|  5540547|(46278.67,32603.67) |
-    ## |2       |  3778|  4247893|(24430.99,4777.71)  |
-    ## |3       |  3647|  4800805|(17510.04,2514.06)  |
-    ## |4       |  8615| 12374104|(33950.58,13560.15) |
+    ## |Cluster | Cells|      Area|Coordinate          |
+    ## |:-------|-----:|---------:|:-------------------|
+    ## |1       |  2733| 122975439|(6520.79,4595.34)   |
+    ## |2       |  2515|  86495516|(33928.36,15075.46) |
+    ## |3       |  5914| 130709184|(22894.67,4270.12)  |
+    ## |4       |  1140|  33343277|(46219.07,32694.19) |
+    ## |5       |   486|    928291|(42552.05,63872.88) |
+    ## |6       | 29557|  91484506|(35879.59,40226.52) |
 
-![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->
+![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/plot-maha-4.png)<!-- -->
 
     ## 
     ## 
@@ -309,11 +315,12 @@ for (i in 1:5){
     ## 
     ## |Cluster | Cells|      Area|Coordinate          |
     ## |:-------|-----:|---------:|:-------------------|
-    ## |1       | 44621|  24276146|(34030.17,33927.28) |
-    ## |2       |  1489|  11193828|(45646.15,30698.58) |
-    ## |3       |  5608| 146142597|(17394.74,11857.46) |
+    ## |1       |   621|  38838127|(4293.53,9312.76)   |
+    ## |2       |  2649| 349730746|(21691.09,12926.14) |
+    ## |3       |  1329|  50895394|(45652.54,30710.34) |
+    ## |4       |  1676|  90290360|(34023.77,33535.60) |
 
-![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->
+![](02b-flowEMMI-on-FDA_PI-from-Z-project_files/figure-gfm/plot-maha-5.png)<!-- -->
 
 ## Files written
 
