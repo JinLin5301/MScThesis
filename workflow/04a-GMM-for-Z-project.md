@@ -1,6 +1,6 @@
 04a-GMM for Z-project
 ================
-Compiled at 2023-09-27 15:51:35 UTC
+Compiled at 2023-10-26 08:53:08 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "9d6a84ea-ebe8-4073-bfe1-9e2529a9d667")
@@ -18,6 +18,10 @@ library(mclust)
 
     ## Package 'mclust' version 6.0.0
     ## Type 'citation("mclust")' for citing this R package in publications.
+
+``` r
+library(flowClust)
+```
 
 ``` r
 # create or *empty* the target directory, used to write this file's data: 
@@ -63,6 +67,7 @@ results will be determined by cross validation.
 
 ``` r
 DAPI_GMM <- list()
+DAPI_GMM_3D <- list()
 
 for (i in 1:5){
   data <- DAPI[[i]]@exprs[,c(11,27)]
@@ -76,6 +81,20 @@ for (i in 1:5){
 ```
 
 ![](04a-GMM-for-Z-project_files/figure-gfm/application-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-5.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-6.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-7.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-8.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-9.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-10.png)<!-- -->
+
+``` r
+for (i in 1){
+  data <- DAPI[[i]]@exprs[,c(11,13,27)]
+  data_name <- names(DAPI)[i]
+  DAPI_GMM_3D[[data_name]]<-flowGMM(data,NULL)
+  
+  par(mar = c(3,3,1,1))
+  plot(DAPI_GMM_3D[[i]]$model,what="classification")
+  plot(DAPI_GMM_3D[[i]]$model,what="BIC")
+}
+```
+
+![](04a-GMM-for-Z-project_files/figure-gfm/3d-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/3d-2.png)<!-- -->
 
 Next, we’d like to fix the cluster number to be the same as it generates
 by flowEMMi.
@@ -96,6 +115,311 @@ for (i in 1:5){
 
 ![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-5.png)<!-- -->
 
+### ROC
+
+``` r
+GMMroc <- function(data,gating_data,ci){
+  mu <- gating_data$parameter$mean
+  dim <- dim(gating_data$parameter$variance$sigma)[3]
+  
+  sigma <- list()
+  for (i in 1:dim){
+    sigma[[i]] <- gating_data$parameter$variance$sigma[,,i]
+  }
+  
+  names <- colnames(data)
+  
+  ncells <- nrow(data)
+  n_clusters <- length(sigma)
+  
+  #generate mahalanobis matrix
+  maha_data <- matrix(NA,nrow=ncells,ncol=n_clusters)
+  
+  for (i in 1:ncells){
+    for(j in 1:n_clusters){
+      maha_data[i,j] <- mahalanobis(data[i,],mu[,j],sigma[[j]])
+    }
+  }
+  
+  maha <- maha_data[,2:n_clusters] %>% as.data.frame()
+  
+  data1 <- maha
+  
+  roc.points <- data.frame(cell=NA,volume=NA)
+  
+  for (alpha in ci){
+    threshold <- -2*log(1-alpha)
+  
+    for (cell in 1:ncells){
+      rv <- data1[cell,1:ncol(data1)-1]
+      if(all(rv>threshold)) {data1$Cluster[cell] <- NA}
+      else {data1$Cluster[cell] <- which.min(rv)}
+    }
+  
+    result <- table(data1$Cluster) %>% as.data.frame()
+    sum1 <- sum(result$Freq)
+  
+    eigen <- matrix(NA,nrow=length(sigma),ncol=2)
+    for (i in 1:length(sigma)){
+      eigen[i,] <- eigen(sigma[[i]])$values
+    }
+    eigen <- eigen[-1,]
+  
+    area <- matrix(NA,nrow=nrow(eigen),ncol=1)
+    for (i in 1:nrow(eigen)){
+      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
+    }
+    area <- as.data.frame(area)
+    sum2 <- sum(area)
+    sum.roc <- cbind(cell=sum1,volume=sum2)
+    
+    roc.points <- rbind(roc.points,sum.roc)
+  }
+  result <- list(maha.matrix=data1,roc.table=roc.points)
+  return(result)
+}
+```
+
+``` r
+# plot
+plot.roc <- function(roc_result){
+  
+  plot.points <- data.frame()
+  plot.scale <- data.frame()
+  plot.scale.points <- data.frame()
+
+  for (i in 1:5){
+    data <- roc_result[[i]]
+    data[1,] <- c(0,0)
+  
+  # No Scaling
+  data$location <- substr(names(DAPI)[i],1,nchar(names(DAPI)[i])-9) %>% as.factor()
+  plot.points <- rbind(plot.points,data)
+  
+  # Scaled by regional maximum
+  max <- data[100,]
+  for (j in 1:100){
+    data[j,1] <- data[j,1]/max[1,1]
+    data[j,2] <- data[j,2]/max[1,2]
+  }
+  plot.scale <- rbind(plot.scale,data1)
+  
+  
+  # Scaled by the max number among all regions
+  plot.scale.points <- plot.points
+  
+  for (j in 1:nrow(plot.points)){
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    }
+  }
+  
+  points <- list(raw.point=plot.points,regional.scaled=plot.scale,all.scaled=plot.scale.points)
+  return(points)
+  
+}
+```
+
+``` r
+GMM.roc <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]@exprs[,c(11,27)]
+  data_name <- names(DAPI)[i]
+  gating_data <- DAPI_GMM_flowemmi[[i]]
+  alpha <- seq(0.01,0.99,0.01)
+  GMM.roc[[data_name]] <- GMMroc(data,gating_data,alpha)
+}
+```
+
+## flowClust
+
+``` r
+DAPI_fC_flex <- list()
+DAPI_fC_fixed <- list()
+
+# gating
+for (i in 1:5){
+  res <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=1:9)
+  data_name <- names(DAPI)[i]
+  bic <- criterion(res, "BIC")
+  max <- which.max(bic)
+  print(paste0("Minimized BIC result for ",data_name, " comes from cluster in number of ",max))
+  plot(res[[max]], data = DAPI[[i]], level = 0.9, main=data_name)
+  DAPI_fC_flex[[data_name]] <- res[[max]]
+  
+  k <- length(gating_DAPI[[i]]@sigma)
+  DAPI_fC_fixed[[data_name]] <- res[[k]]
+}
+```
+
+    ## [1] "Minimized BIC result for Inner_zone_DAPI.fcs comes from cluster in number of 9"
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-gating-1.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+    ## [1] "Minimized BIC result for Middle_zone_DAPI.fcs comes from cluster in number of 9"
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-gating-2.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+    ## [1] "Minimized BIC result for Outer_zone_DAPI.fcs comes from cluster in number of 8"
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-gating-3.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+    ## [1] "Minimized BIC result for Surrounding_DAPI.fcs comes from cluster in number of 9"
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-gating-4.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+    ## [1] "Minimized BIC result for Whole_colony_DAPI.fcs comes from cluster in number of 9"
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-gating-5.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+
+``` r
+#inverse Box-Cox transformation
+invBoxCox <- function(x, lambda){
+  if (lambda == 0) exp(x) 
+  else (lambda*x + 1)^(1/lambda)}
+
+# unite form
+new_DAPI_fC_flex <- list()
+
+for (i in 1:5){
+  data_name <- names(DAPI)[i]
+  
+  coef <- DAPI_fC_flex[[i]]@lambda
+  mu <- t(DAPI_fC_flex[[i]]@mu)
+  sigma <- DAPI_fC_flex[[i]]@sigma
+  
+  mu1 <- invBoxCox(mu,coef)
+  sigma1 <- invBoxCox(sigma,coef)
+  
+  parameter <- list(mean=mu1,variance=list(sigma1))
+  names(parameter$variance) <- "sigma"
+  new_DAPI_fC_flex[[data_name]] <- parameter
+}
+```
+
+``` r
+flowClust_roc <- function(data,gating_data,ci){
+  mu <- gating_data$mean
+  dim <- dim(gating_data$variance$sigma)[1]
+  
+  sigma <- list()
+  for (i in 1:dim){
+    sigma[[i]] <- gating_data$variance$sigma[i,,]
+  }
+  
+  names <- colnames(data)
+  
+  ncells <- nrow(data)
+  n_clusters <- length(sigma)
+  
+  #generate mahalanobis matrix
+  maha_data <- matrix(NA,nrow=ncells,ncol=n_clusters)
+  
+  for (i in 1:ncells){
+    for(j in 1:n_clusters){
+      maha_data[i,j] <- mahalanobis(data[i,],mu[,j],sigma[[j]])
+    }
+  }
+  
+  maha <- maha_data[,2:n_clusters] %>% as.data.frame()
+  
+  data1 <- maha
+  
+  roc.points <- data.frame(cell=NA,volume=NA)
+  
+  for (alpha in ci){
+    threshold <- -2*log(1-alpha)
+  
+    for (cell in 1:ncells){
+      rv <- data1[cell,1:ncol(data1)-1]
+      if(all(rv>threshold)) {data1$Cluster[cell] <- NA}
+      else {data1$Cluster[cell] <- which.min(rv)}
+    }
+  
+    result <- table(data1$Cluster) %>% as.data.frame()
+    sum1 <- sum(result$Freq)
+  
+    eigen <- matrix(NA,nrow=length(sigma),ncol=2)
+    for (i in 1:length(sigma)){
+      eigen[i,] <- eigen(sigma[[i]])$values
+    }
+    eigen <- eigen[-1,]
+  
+    area <- matrix(NA,nrow=nrow(eigen),ncol=1)
+    for (i in 1:nrow(eigen)){
+      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
+    }
+    area <- as.data.frame(area)
+    sum2 <- sum(area)
+    sum.roc <- cbind(cell=sum1,volume=sum2)
+    
+    roc.points <- rbind(roc.points,sum.roc)
+  }
+  result <- list(maha.matrix=data1,roc.table=roc.points)
+  return(result)
+}
+```
+
+``` r
+# plot
+plot.roc <- function(roc_result){
+  
+  plot.points <- data.frame()
+  plot.scale <- data.frame()
+  plot.scale.points <- data.frame()
+
+  for (i in 1:5){
+    data <- roc_result[[i]]
+    data[1,] <- c(0,0)
+  
+  # No Scaling
+  data$location <- substr(names(DAPI)[i],1,nchar(names(DAPI)[i])-9) %>% as.factor()
+  plot.points <- rbind(plot.points,data)
+  
+  # Scaled by regional maximum
+  max <- data[100,]
+  for (j in 1:100){
+    data[j,1] <- data[j,1]/max[1,1]
+    data[j,2] <- data[j,2]/max[1,2]
+  }
+  plot.scale <- rbind(plot.scale,data1)
+  
+  
+  # Scaled by the max number among all regions
+  plot.scale.points <- plot.points
+  
+  for (j in 1:nrow(plot.points)){
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    }
+  }
+  
+  points <- list(raw.point=plot.points,regional.scaled=plot.scale,all.scaled=plot.scale.points)
+  return(points)
+  
+}
+```
+
+``` r
+# maha+roc point
+fC.roc <- list()
+
+for (i in 2:5){
+  data <- DAPI[[i]]@exprs[,c(11,27)]
+  data_name <- names(DAPI)[i]
+  gating_data <- new_DAPI_fC_flex[[data_name]]
+  alpha <- seq(0.01,0.99,0.01)
+  fC.roc[[data_name]] <- flowClust_roc(data,gating_data,alpha)
+}
+```
+
 The same procedure for FDA_PI dataset.
 
 ## FDA_PI
@@ -114,8 +438,6 @@ for (i in 1:5){
 }
 ```
 
-![](04a-GMM-for-Z-project_files/figure-gfm/application2-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-5.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-6.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-7.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-8.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-9.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2-10.png)<!-- -->
-
 ``` r
 FDA_PI_GMM_flowemmi <- list()
 
@@ -129,8 +451,6 @@ for (i in 1:5){
   plot(FDA_PI_GMM_flowemmi[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.3")
 }
 ```
-
-![](04a-GMM-for-Z-project_files/figure-gfm/application2+flowEMMi-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2+flowEMMi-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2+flowEMMi-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2+flowEMMi-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application2+flowEMMi-5.png)<!-- -->
 
 ## Files written
 

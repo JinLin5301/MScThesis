@@ -18,6 +18,7 @@ library(purrr)
 library(dplyr)
 library(flowCore)
 library(mclust)
+library(flowClust)
 ```
 
 ```{r directories}
@@ -62,6 +63,7 @@ In the first part, we don't specify the number of clusters, the best results wil
 
 ```{r application}
 DAPI_GMM <- list()
+DAPI_GMM_3D <- list()
 
 for (i in 1:5){
   data <- DAPI[[i]]@exprs[,c(11,27)]
@@ -72,7 +74,18 @@ for (i in 1:5){
   plot(DAPI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
   plot(DAPI_GMM[[i]]$model,what="BIC")
 }
+```
 
+```{r 3d}
+for (i in 1){
+  data <- DAPI[[i]]@exprs[,c(11,13,27)]
+  data_name <- names(DAPI)[i]
+  DAPI_GMM_3D[[data_name]]<-flowGMM(data,NULL)
+  
+  par(mar = c(3,3,1,1))
+  plot(DAPI_GMM_3D[[i]]$model,what="classification")
+  plot(DAPI_GMM_3D[[i]]$model,what="BIC")
+}
 
 ```
 
@@ -93,11 +106,298 @@ for (i in 1:5){
 
 ```
 
+### ROC
+```{r roc-function}
+GMMroc <- function(data,gating_data,ci){
+  mu <- gating_data$parameter$mean
+  dim <- dim(gating_data$parameter$variance$sigma)[3]
+  
+  sigma <- list()
+  for (i in 1:dim){
+    sigma[[i]] <- gating_data$parameter$variance$sigma[,,i]
+  }
+  
+  names <- colnames(data)
+  
+  ncells <- nrow(data)
+  n_clusters <- length(sigma)
+  
+  #generate mahalanobis matrix
+  maha_data <- matrix(NA,nrow=ncells,ncol=n_clusters)
+  
+  for (i in 1:ncells){
+    for(j in 1:n_clusters){
+      maha_data[i,j] <- mahalanobis(data[i,],mu[,j],sigma[[j]])
+    }
+  }
+  
+  maha <- maha_data[,2:n_clusters] %>% as.data.frame()
+  
+  data1 <- maha
+  
+  roc.points <- data.frame(cell=NA,volume=NA)
+  
+  for (alpha in ci){
+    threshold <- -2*log(1-alpha)
+  
+    for (cell in 1:ncells){
+      rv <- data1[cell,1:ncol(data1)-1]
+      if(all(rv>threshold)) {data1$Cluster[cell] <- NA}
+      else {data1$Cluster[cell] <- which.min(rv)}
+    }
+  
+    result <- table(data1$Cluster) %>% as.data.frame()
+    sum1 <- sum(result$Freq)
+  
+    eigen <- matrix(NA,nrow=length(sigma),ncol=2)
+    for (i in 1:length(sigma)){
+      eigen[i,] <- eigen(sigma[[i]])$values
+    }
+    eigen <- eigen[-1,]
+  
+    area <- matrix(NA,nrow=nrow(eigen),ncol=1)
+    for (i in 1:nrow(eigen)){
+      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
+    }
+    area <- as.data.frame(area)
+    sum2 <- sum(area)
+    sum.roc <- cbind(cell=sum1,volume=sum2)
+    
+    roc.points <- rbind(roc.points,sum.roc)
+  }
+  result <- list(maha.matrix=data1,roc.table=roc.points)
+  return(result)
+}
+```
+
+
+```{r roc-plot}
+# plot
+plot.roc <- function(roc_result){
+  
+  plot.points <- data.frame()
+  plot.scale <- data.frame()
+  plot.scale.points <- data.frame()
+
+  for (i in 1:5){
+    data <- roc_result[[i]]
+    data[1,] <- c(0,0)
+  
+  # No Scaling
+  data$location <- substr(names(DAPI)[i],1,nchar(names(DAPI)[i])-9) %>% as.factor()
+  plot.points <- rbind(plot.points,data)
+  
+  # Scaled by regional maximum
+  max <- data[100,]
+  for (j in 1:100){
+    data[j,1] <- data[j,1]/max[1,1]
+    data[j,2] <- data[j,2]/max[1,2]
+  }
+  plot.scale <- rbind(plot.scale,data1)
+  
+  
+  # Scaled by the max number among all regions
+  plot.scale.points <- plot.points
+  
+  for (j in 1:nrow(plot.points)){
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    }
+  }
+  
+  points <- list(raw.point=plot.points,regional.scaled=plot.scale,all.scaled=plot.scale.points)
+  return(points)
+  
+}
+```
+
+```{r roc-calc points,eval=FALSE}
+GMM.roc <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]@exprs[,c(11,27)]
+  data_name <- names(DAPI)[i]
+  gating_data <- DAPI_GMM_flowemmi[[i]]
+  alpha <- seq(0.01,0.99,0.01)
+  GMM.roc[[data_name]] <- GMMroc(data,gating_data,alpha)
+}
+```
+
+## flowClust
+
+```{r flowClust-gating}
+DAPI_fC_flex <- list()
+DAPI_fC_fixed <- list()
+
+# gating
+for (i in 1:5){
+  res <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=1:9)
+  data_name <- names(DAPI)[i]
+  bic <- criterion(res, "BIC")
+  max <- which.max(bic)
+  print(paste0("Minimized BIC result for ",data_name, " comes from cluster in number of ",max))
+  plot(res[[max]], data = DAPI[[i]], level = 0.9, main=data_name)
+  DAPI_fC_flex[[data_name]] <- res[[max]]
+  
+  k <- length(gating_DAPI[[i]]@sigma)
+  DAPI_fC_fixed[[data_name]] <- res[[k]]
+}
+```
+
+
+
+```{r flowClust1}
+#inverse Box-Cox transformation
+invBoxCox <- function(x, lambda){
+  if (lambda == 0) exp(x) 
+  else (lambda*x + 1)^(1/lambda)}
+
+# unite form
+new_DAPI_fC_flex <- list()
+
+for (i in 1:5){
+  data_name <- names(DAPI)[i]
+  
+  coef <- DAPI_fC_flex[[i]]@lambda
+  mu <- t(DAPI_fC_flex[[i]]@mu)
+  sigma <- DAPI_fC_flex[[i]]@sigma
+  
+  mu1 <- invBoxCox(mu,coef)
+  sigma1 <- invBoxCox(sigma,coef)
+  
+  parameter <- list(mean=mu1,variance=list(sigma1))
+  names(parameter$variance) <- "sigma"
+  new_DAPI_fC_flex[[data_name]] <- parameter
+}
+
+```
+
+```{r fC-function}
+flowClust_roc <- function(data,gating_data,ci){
+  mu <- gating_data$mean
+  dim <- dim(gating_data$variance$sigma)[1]
+  
+  sigma <- list()
+  for (i in 1:dim){
+    sigma[[i]] <- gating_data$variance$sigma[i,,]
+  }
+  
+  names <- colnames(data)
+  
+  ncells <- nrow(data)
+  n_clusters <- length(sigma)
+  
+  #generate mahalanobis matrix
+  maha_data <- matrix(NA,nrow=ncells,ncol=n_clusters)
+  
+  for (i in 1:ncells){
+    for(j in 1:n_clusters){
+      maha_data[i,j] <- mahalanobis(data[i,],mu[,j],sigma[[j]])
+    }
+  }
+  
+  maha <- maha_data[,2:n_clusters] %>% as.data.frame()
+  
+  data1 <- maha
+  
+  roc.points <- data.frame(cell=NA,volume=NA)
+  
+  for (alpha in ci){
+    threshold <- -2*log(1-alpha)
+  
+    for (cell in 1:ncells){
+      rv <- data1[cell,1:ncol(data1)-1]
+      if(all(rv>threshold)) {data1$Cluster[cell] <- NA}
+      else {data1$Cluster[cell] <- which.min(rv)}
+    }
+  
+    result <- table(data1$Cluster) %>% as.data.frame()
+    sum1 <- sum(result$Freq)
+  
+    eigen <- matrix(NA,nrow=length(sigma),ncol=2)
+    for (i in 1:length(sigma)){
+      eigen[i,] <- eigen(sigma[[i]])$values
+    }
+    eigen <- eigen[-1,]
+  
+    area <- matrix(NA,nrow=nrow(eigen),ncol=1)
+    for (i in 1:nrow(eigen)){
+      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))
+    }
+    area <- as.data.frame(area)
+    sum2 <- sum(area)
+    sum.roc <- cbind(cell=sum1,volume=sum2)
+    
+    roc.points <- rbind(roc.points,sum.roc)
+  }
+  result <- list(maha.matrix=data1,roc.table=roc.points)
+  return(result)
+}
+```
+
+
+```{r roc-plot2}
+# plot
+plot.roc <- function(roc_result){
+  
+  plot.points <- data.frame()
+  plot.scale <- data.frame()
+  plot.scale.points <- data.frame()
+
+  for (i in 1:5){
+    data <- roc_result[[i]]
+    data[1,] <- c(0,0)
+  
+  # No Scaling
+  data$location <- substr(names(DAPI)[i],1,nchar(names(DAPI)[i])-9) %>% as.factor()
+  plot.points <- rbind(plot.points,data)
+  
+  # Scaled by regional maximum
+  max <- data[100,]
+  for (j in 1:100){
+    data[j,1] <- data[j,1]/max[1,1]
+    data[j,2] <- data[j,2]/max[1,2]
+  }
+  plot.scale <- rbind(plot.scale,data1)
+  
+  
+  # Scaled by the max number among all regions
+  plot.scale.points <- plot.points
+  
+  for (j in 1:nrow(plot.points)){
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    }
+  }
+  
+  points <- list(raw.point=plot.points,regional.scaled=plot.scale,all.scaled=plot.scale.points)
+  return(points)
+  
+}
+```
+
+
+```{r flowClust-maha+roc,eval=FALSE}
+# maha+roc point
+fC.roc <- list()
+
+for (i in 2:5){
+  data <- DAPI[[i]]@exprs[,c(11,27)]
+  data_name <- names(DAPI)[i]
+  gating_data <- new_DAPI_fC_flex[[data_name]]
+  alpha <- seq(0.01,0.99,0.01)
+  fC.roc[[data_name]] <- flowClust_roc(data,gating_data,alpha)
+}
+
+```
+
+
+
 The same procedure for FDA_PI dataset.
 
 ## FDA_PI
 
-```{r application2}
+```{r application2,eval=FALSE}
 FDA_PI_GMM <- list()
 
 for (i in 1:5){
@@ -112,7 +412,7 @@ for (i in 1:5){
 
 ```
 
-```{r application2+flowEMMi}
+```{r application2+flowEMMi,eval=FALSE}
 FDA_PI_GMM_flowemmi <- list()
 
 for (i in 1:5){
