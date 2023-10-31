@@ -1,6 +1,6 @@
 02a-flowEMMi for-Z-project
 ================
-Compiled at 2023-10-26 08:47:01 UTC
+Compiled at 2023-10-31 01:29:23 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
@@ -265,11 +265,6 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   test <- cbind(test,area,coordinates)
   colnames(test) <- c("Cluster","Cells","Area","Coordinate")
 
-  #table <- gt(test) %>%
-    #tab_header(title = data_name) %>%
-    #tab_spanner(label="Cell",columns = c(Local,Meta)) %>%
-    #tab_spanner(label="Area",columns = c(Local,Meta))
-   
   #plot
   maha_data2$Cluster <- as.factor(maha_data2$Cluster)
   
@@ -398,13 +393,13 @@ their corresponding ellipse sizes, involving comparisons between
 different sampling positions.
 
 ``` r
-flowroc <- function(data,gating_data,ci){
+flowroc <- function(data,gating_data,CI){
   data1 <- data[,-c(1,2,ncol(data))]
   ncells <- nrow(data1)
   
   roc.points <- data.frame(cell=NA,volume=NA)
   
-  for (alpha in ci){
+  for (alpha in CI){
     threshold <- -2*log(1-alpha)
   
     for (cell in 1:ncells){
@@ -498,10 +493,12 @@ plot_point <- function(roc_result){
   
   # Scaled by the max number among all regions
   plot.scale.points <- plot.points
+  max1 <- max(plot.scale.points[,1])
+  max2 <- max(plot.scale.points[,2])
   
   for (j in 1:nrow(plot.points)){
-    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
-    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max1
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max2
    }
   }
   
@@ -524,6 +521,8 @@ for (i in 1:3){
   
   point[[i]] <- ggplot(roc$raw.point,aes(x=volume,y=cell,color=location))+
     geom_line()+labs(x="volume",y="cell")+
+    coord_cartesian(ylim = c(0,60000),xlim=c(0,2e9))+
+    scale_x_continuous(breaks = seq(0,2e9,by=1e9),labels = c(0,1e9,2e9))
     theme_minimal()
   
   point[[i+3]] <- ggplot(roc$regional.scaled,aes(x=volume,y=cell,color=location))+
@@ -537,8 +536,8 @@ for (i in 1:3){
 
 complete <- ggarrange(plotlist = point,ncol=3, nrow=3, common.legend = TRUE, legend="bottom")
 annotate_figure(complete,
-                top = "           FSC vs. SSC              FSC vs. DAPI                            SSC vs. DAPI",
-                left = "                 Global                Regional          None Scaled")
+                top = "           FSC vs. SSC                           FSC vs. DAPI                                 SSC vs. DAPI",
+                left = "                 Global                     Regional           None Scaled")
 ```
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-channel-1.png)<!-- -->
@@ -581,26 +580,33 @@ annotate_figure(complete,top = "FSC vs. DAPI: Without Scaling")
 roc_flowEMMI <- readRDS("~/Desktop/MSc_new_data/roc_DAPI.rds")
 roc_GMM_flex <- readRDS("~/Desktop/MSc_new_data/GMM.roc.flex19.rds")
 roc_GMM_fixed <- readRDS("~/Desktop/MSc_new_data/GMM.roc.fix19.rds")
-roc_flowClust_flex <- readRDS("~/Desktop/MSc_new_data/fC.roc.flex19.rds")
+roc_fC_no_BC_trans <- readRDS("~/Desktop/MSc_new_data/test0.rds")
+roc_flowClust <- readRDS("~/Desktop/MSc_new_data/DAPI_bc.rds")
 
-data1 <- roc_flowEMMI[[1]]
+point <- list()
+
+for (i in 1:5){
+data1 <- roc_flowEMMI[[i]]
 data1$method <- as.factor("flowEMMI")
 
-data2 <- roc_GMM_flex[[1]]$roc.table
+data2 <- roc_GMM_flex[[i]]$roc.table
 data2$method <- as.factor("GMM_flex")
 
-data3 <- roc_GMM_fixed[[1]]$roc.table
+data3 <- roc_GMM_fixed[[i]]$roc.table
 data3$method <- as.factor("GMM_fixed")
 
-data4 <- roc_flowClust_flex[[1]]$roc.table
-data4$method <- as.factor("flowClust")
+data4 <- roc_fC_no_BC_trans[[i]]$roc.table
+data4$method <- as.factor("flowClust-no BC trans")
+
+data5 <- roc_flowClust[[i]]$roc.table
+data5$method <- as.factor("flowClust")
 
 plot.points <- data.frame()
 plot.scale <- data.frame()
 plot.scale.points <- data.frame()
 
-for (i in 1:4){
-  var <- paste0("data",i)
+for (j in 1:5){
+  var <- paste0("data",j)
   data <- get(var)
   data[1,1:2] <- c(0,0)
   
@@ -608,7 +614,9 @@ for (i in 1:4){
   plot.points <- rbind(plot.points,data)
   
   # Scaled by regional maximum
-  max <- data[100,]
+  if(j < 4){max=data[100,]}
+  else{max=data[2,]}
+  
   for (j in 1:100){
     data[j,1] <- data[j,1]/max[1,1]
     data[j,2] <- data[j,2]/max[1,2]
@@ -617,40 +625,39 @@ for (i in 1:4){
   
   # Scaled by the max number among all regions
   plot.scale.points <- plot.points
+  max1 <- max(plot.scale.points[,1])
+  max2 <- max(plot.scale.points[,2])
   
   for (j in 2:nrow(plot.points)){
-    plot.scale.points[j,1]<- plot.scale.points[j,1]/max(plot.scale.points[,1])
-    plot.scale.points[j,2]<- plot.scale.points[j,2]/max(plot.scale.points[,2])
-    }
+    plot.scale.points[j,1]<- plot.scale.points[j,1]/max1
+    plot.scale.points[j,2]<- plot.scale.points[j,2]/max2
   }
   
-  #return(raw.point=plot.points,reginal.scaled=plot.scale,all.scaled=plot.scale.points)
-
-  print(ggplot(plot.points, aes(x = volume, y = cell, color = method)) +
+  point[[i]] <- ggplot(plot.points, aes(x = volume, y = cell, color = method)) +
+    geom_line() + coord_cartesian(xlim=c(0,5e9),ylim=c(0,50000)) +
+    scale_x_continuous(breaks = seq(0,4e9,by=2e9),labels = c(0,2e9,4e9))+
+    labs(x = "volume", y = "cell") +
+    theme_minimal()
+  
+  point[[i+5]] <- ggplot(plot.scale, aes(x = volume, y = cell, color = method)) +
     geom_line() +
-    labs(x = "volume", y = "cell", title = "FSC vs.DAPI in diff. methods", subtitle = "Without scaling") +
-    theme_minimal())
+    labs(x = "volume", y = "cell") +
+    theme_minimal()
+  
+  point[[i+10]] <- ggplot(plot.scale.points, aes(x = volume, y = cell, color = method)) +
+    geom_line() +
+    labs(x = "volume", y = "cell") +
+    theme_minimal()
+  }
+}
+
+complete <- ggarrange(plotlist = point,ncol=5, nrow=3, common.legend = TRUE, legend="bottom")
+annotate_figure(complete,
+                top = "Inner_zone         Middle_zone       Outer_zone       Surrounding        Whole_colony",
+                left = "            Global               Regional                None Scaled") 
 ```
 
 ![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-method-1.png)<!-- -->
-
-``` r
-  print(ggplot(plot.scale, aes(x = volume, y = cell, color = method)) +
-    geom_line() +
-    labs(x = "volume", y = "cell", title = "FSC vs.DAPI in diff. methods", subtitle = "Scaled by each regional maximum") +
-    theme_minimal())
-```
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-method-2.png)<!-- -->
-
-``` r
-  print(ggplot(plot.scale.points, aes(x = volume, y = cell, color = method)) +
-    geom_line() +
-    labs(x = "volume", y = "cell", title = "FSC vs.DAPI in diff. methods", subtitle = "Scaled by max number over all regions") +
-    theme_minimal())
-```
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/DAPI-method-3.png)<!-- -->
 
 ## Files written
 
