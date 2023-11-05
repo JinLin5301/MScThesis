@@ -1,6 +1,6 @@
 02a-flowEMMi for-Z-project
 ================
-Compiled at 2023-10-31 01:29:23 UTC
+Compiled at 2023-11-05 19:03:09 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
@@ -106,24 +106,14 @@ for (i in 1:5){
   data <- DAPI[[i]]
   plots <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
                             logScale = F, results = gating_DAPI[[i]],
-                            title = data_name, plotRelevance = T,
+                            title = data_name, plotRelevance = T,gridsize = 1000,
                             ellipseDotSize = 0.5, axis_size=10, axisLabeling_size=10,
                             xlab = "Forward Scatter", ylab = "DAPI", font = "Arial")
   gating_DAPI_plot[[i]] <- plots$plot
 }
 ```
 
-    ## Warning in KernSmooth::bkde2D(x, bandwidth = bandwidth, gridsize = nbin, :
-    ## Binning grid too coarse for current (small) bandwidth: consider increasing
-    ## 'gridsize'
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-1.png)<!-- -->
-
-    ## Warning in KernSmooth::bkde2D(x, bandwidth = bandwidth, gridsize = nbin, :
-    ## Binning grid too coarse for current (small) bandwidth: consider increasing
-    ## 'gridsize'
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-5.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/plot-DAPI-5.png)<!-- -->
 
 In the above graphs, the ellipses are colored according to their cluster
 probability, high probability in red, medium probability in white, low
@@ -139,25 +129,24 @@ ellipses.
 #PMT.1--Forward Scatter--col11
 #PMT.9--Fluor. DAPI--col27
 
-all_data <- DAPI[[1]]@exprs[,c(11,27)]
 all_gate <- gating_DAPI[[1]]
+all_gate@mu <- all_gate@mu[,-1]
+all_gate@sigma <- all_gate@sigma[-1]
+all_gate@clusterProbs <- all_gate@clusterProbs[-1]
 
-  for (i in 2:5){
+for (i in 2:5){
     mu <- gating_DAPI[[i]]@mu[,-1]
     sigma <- gating_DAPI[[i]]@sigma[-1]
     prob <- gating_DAPI[[i]]@clusterProbs[-1]
     all_gate@mu <- cbind(all_gate@mu,mu)
     all_gate@sigma <- c(all_gate@sigma,sigma)
     all_gate@clusterProbs <- c(all_gate@clusterProbs,prob)
-    
-    data <- DAPI[[i]]@exprs[,c(11,27)]
-    all_data <- rbind(all_data,data)
 }
 
 Gating_DAPI_meta <- removeOverlaps(em=all_gate, alpha=0.9
                                   , mergeWhenCenter = FALSE
                                   , mergeWhenTwoCenters = FALSE
-                                  , thresholdForDeletion = 0.2
+                                  , thresholdForDeletion = 0.9
                                   , threshold = 0.9
                                   , shrinkingFunction=shrinkEllipses
                                   , considerWeights=TRUE
@@ -179,24 +168,14 @@ for (i in 1:5){
   plots <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
                             logScale = F, results = Gating_DAPI_meta,
                             title = paste0("Meta-clustering on ",data_name), 
-                            plotRelevance = T,
+                            plotRelevance = T,gridsize = 1000,
                             ellipseDotSize = 0.5, axis_size=10, axisLabeling_size=10,
                             xlab = "Forward Scatter", ylab = "DAPI", font = "Arial")
   gating_DAPI_meta_plot[[i]] <- plots$plot
 }
 ```
 
-    ## Warning in KernSmooth::bkde2D(x, bandwidth = bandwidth, gridsize = nbin, :
-    ## Binning grid too coarse for current (small) bandwidth: consider increasing
-    ## 'gridsize'
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-1.png)<!-- -->
-
-    ## Warning in KernSmooth::bkde2D(x, bandwidth = bandwidth, gridsize = nbin, :
-    ## Binning grid too coarse for current (small) bandwidth: consider increasing
-    ## 'gridsize'
-
-![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-5.png)<!-- -->
+![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-1.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-2.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-3.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-4.png)<!-- -->![](02a-flowEMMi-for-Z-project_files/figure-gfm/meta-DAPI-plot-5.png)<!-- -->
 
 ## Mahalanobis distance function with flowEMMi
 
@@ -246,7 +225,7 @@ flowEMMi_mahalanobis <- function(data,data_name,gating_data,alpha){
   
   maha_data2 <- cbind(data,maha)
   
-  test <- table(maha[,ncol(maha)]) %>% as.data.frame()
+  test <- base::table(maha[,ncol(maha)]) %>% as.data.frame()
   coordinates <- sprintf("(%.2f,%.2f)",mu[1,2:ncol(mu)],mu[2,2:ncol(mu)])
   
   #Area of Ellipse
@@ -299,7 +278,7 @@ ellipses for each cluster.
 ``` r
 # FSC vs. DAPI
 flowemmi_DAPI <- list()
-flowemmi_meta_DAPI <- list()
+#flowemmi_meta_DAPI <- list()
 
 for (i in 1:5){
   data_name <- names(DAPI)[i]
@@ -307,9 +286,8 @@ for (i in 1:5){
   gating_data <- gating_DAPI[[i]]
   flowemmi_DAPI[[data_name]] <-flowEMMi_mahalanobis(data,data_name,gating_data,0.9)
   
-  dname <- paste0("Meta_",data_name)
-  flowemmi_meta_DAPI[[data_name]] <- flowEMMi_mahalanobis(data,dname,Gating_DAPI_meta,0.9)
-  
+  #dname <- paste0("Meta_",data_name)
+  #flowemmi_meta_DAPI[[data_name]] <- flowEMMi_mahalanobis(data,dname,Gating_DAPI_meta,0.9)
   
   # visualization
   table <- flowemmi_DAPI[[data_name]]$table_info %>% 
@@ -408,7 +386,7 @@ flowroc <- function(data,gating_data,CI){
       else {data1$Cluster[cell] <- which.min(rv)}
     }
   
-    result <- table(data1$Cluster) %>% as.data.frame()
+    result <- base::table(data1$Cluster) %>% as.data.frame()
     sum1 <- sum(result$Freq)
   
     sigma <- gating_data@sigma
@@ -522,7 +500,7 @@ for (i in 1:3){
   point[[i]] <- ggplot(roc$raw.point,aes(x=volume,y=cell,color=location))+
     geom_line()+labs(x="volume",y="cell")+
     coord_cartesian(ylim = c(0,60000),xlim=c(0,2e9))+
-    scale_x_continuous(breaks = seq(0,2e9,by=1e9),labels = c(0,1e9,2e9))
+    scale_x_continuous(breaks = seq(0,2e9,by=1e9),labels = c(0,1e9,2e9))+
     theme_minimal()
   
   point[[i+3]] <- ggplot(roc$regional.scaled,aes(x=volume,y=cell,color=location))+
@@ -546,6 +524,7 @@ annotate_figure(complete,
 
 ``` r
 location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
+scale.type <- c("raw.point")
 point <- list()
 
 p1 <- plot_point(roc_19)
@@ -553,18 +532,22 @@ p2 <- plot_point(roc_meta_19)
 
 for (i in 1:5){
   var <- location[i]
+  
   data1 <- p1$raw.point %>% dplyr::filter(location==var)
   data2 <- p2$raw.point %>% dplyr::filter(location==var)
   
-  data1$type <- "gating"
-  data2$type <- "meta-clustering"
+  data1$Type <- "gating"
+  data2$Type <- "meta-clustering"
   
   data <- rbind(data1,data2)
   
-  point[[i]] <- ggplot(data,aes(x=volume,y=cell,color=type))+
+  point[[i]] <- ggplot(data,aes(x=volume,y=cell,color=Type))+
     geom_line()+labs(x="volume",y="cell",title=var)+
+    coord_cartesian(ylim = c(0,65535),xlim=c(0,1.5e9))+
+    scale_x_continuous(breaks = seq(0,1.5e9,by=1.5e9),labels = c(0,1.5e9))+
     theme_minimal()
 }
+  
 
 
 complete <- ggarrange(plotlist = point,
@@ -634,19 +617,22 @@ for (j in 1:5){
   }
   
   point[[i]] <- ggplot(plot.points, aes(x = volume, y = cell, color = method)) +
-    geom_line() + coord_cartesian(xlim=c(0,5e9),ylim=c(0,50000)) +
-    scale_x_continuous(breaks = seq(0,4e9,by=2e9),labels = c(0,2e9,4e9))+
+    geom_line() + 
+    coord_cartesian(xlim=c(0,5e9),ylim=c(0,80000)) +
+    scale_x_continuous(breaks = seq(0,4e9,by=4e9),labels = c(0,4e9))+
     labs(x = "volume", y = "cell") +
     theme_minimal()
   
   point[[i+5]] <- ggplot(plot.scale, aes(x = volume, y = cell, color = method)) +
     geom_line() +
     labs(x = "volume", y = "cell") +
+    scale_x_continuous(breaks = seq(0,1,by=0.5),labels = c(0,0.5,1))+
     theme_minimal()
   
   point[[i+10]] <- ggplot(plot.scale.points, aes(x = volume, y = cell, color = method)) +
     geom_line() +
     labs(x = "volume", y = "cell") +
+    scale_x_continuous(breaks = seq(0,1,by=0.5),labels = c(0,0.5,1))+
     theme_minimal()
   }
 }
