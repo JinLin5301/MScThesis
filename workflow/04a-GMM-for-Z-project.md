@@ -1,6 +1,6 @@
 04a-GMM for Z-project
 ================
-Compiled at 2023-10-31 16:02:52 UTC
+Compiled at 2023-11-06 11:20:18 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "9d6a84ea-ebe8-4073-bfe1-9e2529a9d667")
@@ -13,6 +13,7 @@ library("conflicted")
 library(purrr)
 library(dplyr)
 library(flowCore)
+library(ggplot2)
 library(mclust)
 ```
 
@@ -20,8 +21,82 @@ library(mclust)
     ## Type 'citation("mclust")' for citing this R package in publications.
 
 ``` r
+library(flowEMMi)
+```
+
+    ## For detailed instructions please run browseVignettes('flowEMMi').
+    ##   For an overview of available functions please run library(help='flowEMMi')
+
+``` r
+library(factoextra)
+```
+
+    ## Welcome! Want to learn more? See two factoextra-related books at https://goo.gl/ve3WBa
+
+``` r
 library(flowClust)
+library(flowViz)
+```
+
+    ## Loading required package: lattice
+
+``` r
+library(flowMerge)
+```
+
+    ## Loading required package: graph
+
+    ## Loading required package: BiocGenerics
+
+    ## 
+    ## Attaching package: 'BiocGenerics'
+
+    ## The following object is masked from 'package:flowClust':
+    ## 
+    ##     Map
+
+    ## The following object is masked from 'package:flowCore':
+    ## 
+    ##     normalize
+
+    ## The following objects are masked from 'package:dplyr':
+    ## 
+    ##     combine, intersect, setdiff, union
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     IQR, mad, sd, var, xtabs
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     anyDuplicated, aperm, append, as.data.frame, basename, cbind,
+    ##     colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
+    ##     get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply,
+    ##     match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
+    ##     Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort,
+    ##     table, tapply, union, unique, unsplit, which.max, which.min
+
+    ## Loading required package: feature
+
+    ## Loading required package: Rgraphviz
+
+    ## Loading required package: grid
+
+    ## Loading required package: foreach
+
+    ## 
+    ## Attaching package: 'foreach'
+
+    ## The following objects are masked from 'package:purrr':
+    ## 
+    ##     accumulate, when
+
+    ## Loading required package: snow
+
+``` r
 library(MASS)
+library(ggpubr)
+library(plot3D)
 ```
 
 ``` r
@@ -70,54 +145,104 @@ results will be determined by cross validation.
 
 ``` r
 DAPI_GMM <- list()
+DAPI_GMM_flowemmi <- list()
 DAPI_GMM_3D <- list()
+
+GMM_plot <- list()
 
 for (i in 1:5){
   data <- DAPI[[i]]@exprs[,c(11,27)]
   data_name <- names(DAPI)[i]
   DAPI_GMM[[data_name]]<-flowGMM(data,NULL)
   
-  plot(DAPI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
-  plot(DAPI_GMM[[i]]$model,what="BIC")
-}
-```
-
-![](04a-GMM-for-Z-project_files/figure-gfm/application-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-5.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-6.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-7.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-8.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-9.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application-10.png)<!-- -->
-
-``` r
-for (i in 1){
-  data <- DAPI[[i]]@exprs[,c(11,13,27)]
-  data_name <- names(DAPI)[i]
-  DAPI_GMM_3D[[data_name]]<-flowGMM(data,NULL)
-  
-  plot(DAPI_GMM_3D[[i]]$model,what="classification",main=data_name)
-  plot(DAPI_GMM_3D[[i]]$model,what="BIC")
-}
-```
-
-![](04a-GMM-for-Z-project_files/figure-gfm/3d-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/3d-2.png)<!-- -->
-
-### Gating plots
-
-Next, we’d like to fix the cluster number to be the same as it generates
-by flowEMMi.
-
-``` r
-DAPI_GMM_flowemmi <- list()
-
-for (i in 1:5){
-  data <- DAPI[[i]]@exprs[,c(11,27)]
-  data_name <- names(DAPI)[i]
   n_cluster <- length(gating_DAPI[[i]]@sigma)
   DAPI_GMM_flowemmi[[data_name]]<-flowGMM(data,n_cluster)
   
-  plot(DAPI_GMM_flowemmi[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
+  data1 <- DAPI[[i]]@exprs[,c(11,13,27)]
+  DAPI_GMM_3D[[data_name]]<-flowGMM(data1,NULL)
+  
+  GMM_plot[[i]] <- fviz_mclust(DAPI_GMM[[i]]$model, "classification", geom = "point",main=data_name)
+  GMM_plot[[i+5]] <- fviz_mclust(DAPI_GMM_flowemmi[[i]]$model, "classification", 
+                                 geom = "point",main="K = flowEMMI")
+
+}
+
+# 2D plots
+ggarrange(plotlist = GMM_plot,ncol=5,nrow=2,common.legend = T,legend = "bottom")
+
+# 3D plots
+for (i in 1:5){
+  plot(DAPI_GMM_3D[[i]]$model,what="classification",main=data_name)
 }
 ```
 
-![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/application+flowEMMi-5.png)<!-- -->
+## Meta-clustering
 
-## GMM-ROC Function
+### merge
+
+``` r
+GMM.merge <- function(gating_list){
+  
+ all_gate <- gating_DAPI[[1]]
+ all_gate@mu <- matrix(NA,nrow=2,ncol=1)
+ all_gate@sigma <- list()
+ all_gate@clusterProbs <- numeric()
+
+ for (i in 1:5){
+    mu <- gating_list[[i]]$parameter$mean
+    dim <- dim(gating_list[[i]]$parameter$variance$sigma)[3]
+  
+    sigma <- list()
+    for (j in 1:dim){
+      sigma[[j]] <- gating_list[[i]]$parameter$variance$sigma[,,j]
+    }
+    
+    prob <- gating_list[[i]]$parameter$pro
+    
+    all_gate@mu <- cbind(all_gate@mu,mu)
+    all_gate@sigma <- c(all_gate@sigma,sigma)
+    all_gate@clusterProbs <- c(all_gate@clusterProbs,prob)
+ }
+ 
+ all_gate@mu <- all_gate@mu[,-1]
+ 
+ meta_result <- removeOverlaps(em=all_gate, alpha=0.9
+                                  , mergeWhenCenter = FALSE
+                                  , mergeWhenTwoCenters = FALSE
+                                  , thresholdForDeletion = 0.5
+                                  , threshold = 0.9
+                                  , shrinkingFunction=shrinkEllipses
+                                  , considerWeights=TRUE
+                                  , plot = FALSE
+                                  , minMinor = 500)
+ return(meta_result)
+}
+```
+
+### plots
+
+``` r
+location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
+GMM_meta_flex <- GMM.merge(DAPI_GMM)
+GMM_meta_fix <- GMM.merge(DAPI_GMM_flowemmi)
+
+meta_plots <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]
+  var <- location[i]
+  meta_plots[[i]] <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
+                            logScale = F, results = GMM_meta_flex,
+                            title = paste0("GMM Meta-clust on ",var," with flex. K"), 
+                            plotRelevance = T,gridsize = 1000,
+                            ellipseDotSize = 0.5, axis_size=10, axisLabeling_size=10,
+                            xlab = "Forward Scatter", ylab = "DAPI", font = "Arial")
+}
+```
+
+![](04a-GMM-for-Z-project_files/figure-gfm/GMM-meta-plot-1.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/GMM-meta-plot-2.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/GMM-meta-plot-3.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/GMM-meta-plot-4.png)<!-- -->![](04a-GMM-for-Z-project_files/figure-gfm/GMM-meta-plot-5.png)<!-- -->
+
+## ROC Function
 
 ### for points
 
@@ -172,9 +297,9 @@ GMMroc <- function(data,gating_data,CI){
     if(length(sigma)>2){
     area <- matrix(NA,nrow=nrow(eigen),ncol=1)
     for (i in 1:nrow(eigen)){
-      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))}
+      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*threshold}
     }
-    else {area <- pi*sqrt(eigen[1]*eigen[2])*(-2*log(1-alpha))}
+    else {area <- pi*sqrt(eigen[1]*eigen[2])*threshold}
     
     area <- as.data.frame(area)
     sum2 <- sum(area)
@@ -182,7 +307,7 @@ GMMroc <- function(data,gating_data,CI){
     
     roc.points <- rbind(roc.points,sum.roc)
   }
-  result <- list(roc.table=roc.points)
+  result <- list(maha.matrix=maha,roc.table=roc.points)
   return(result)
 }
 ```
@@ -257,7 +382,7 @@ DAPI_fC_fixed <- list()
 
 # gating
 for (i in 1:5){
-  res <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=1:9)
+  res <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=1:10)
   data_name <- names(DAPI)[i]
   bic <- criterion(res, "BIC")
   max <- which.max(bic)
@@ -310,7 +435,516 @@ for (i in 1:5){
 
     ## Rule of identifying outliers: 90% quantile
 
-### flowClust-ROC
+## flowMerge
+
+### merging
+
+``` r
+DAPI_fC_flex_merge <- list()
+DAPI_fC_fixed_merge <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]
+  data_name <- names(DAPI)[i]
+  
+  flowobj <- flowObj(DAPI_fC_flex[[i]],data)
+  merge <- flowMerge::merge(flowobj,metric="mahalanobis")
+  a <- fitPiecewiseLinreg(merge)
+  
+  flowobj2 <- flowObj(DAPI_fC_fixed[[i]],data)
+  merge2 <- flowMerge::merge(flowobj2,metrix="mahalanobis")
+  b <-  fitPiecewiseLinreg(merge2)
+  
+  DAPI_fC_flex_merge[[data_name]] <- merge[[a]]
+  DAPI_fC_fixed_merge[[data_name]] <- merge2[[b]]
+}
+```
+
+    ## Merged to 9 clusters
+
+    ## Merged to 8 clusters
+
+    ## Merged to 7 clusters
+
+    ## Merged to 6 clusters
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 7
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 8
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 9
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 10
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Merged to 9 clusters
+
+    ## Merged to 8 clusters
+
+    ## Merged to 7 clusters
+
+    ## Merged to 6 clusters
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 7
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 8
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 9
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 10
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Merged to 9 clusters
+
+    ## Merged to 8 clusters
+
+    ## Merged to 7 clusters
+
+    ## Merged to 6 clusters
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 7
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 8
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 9
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 10
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Warning in fitPiecewiseLinreg(merge2): Possible changepoint detected by angle
+    ## between line segments
+
+    ## Merged to 9 clusters
+
+    ## Merged to 8 clusters
+
+    ## Merged to 7 clusters
+
+    ## Merged to 6 clusters
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 7
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 8
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 9
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 10
+
+    ## Merged to 6 clusters
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 7
+
+    ## Merged to 9 clusters
+
+    ## Merged to 8 clusters
+
+    ## Merged to 7 clusters
+
+    ## Merged to 6 clusters
+
+    ## Merged to 5 clusters
+
+    ## Merged to 4 clusters
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 5
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 6
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 7
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 8
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 9
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 10
+
+    ## Merged to 3 clusters
+
+    ## Merged to 2 clusters
+
+    ## Merged to 1 clusters
+
+    ## Updating model statistics
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 1
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 2
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 3
+
+    ## Rule of identifying outliers: 90% quantile
+
+    ## Updated model 4
+
+``` r
+#plots
+for (i in 1:5){
+  opt <- DAPI_fC_flex_merge[[i]]
+  var <- location[i]
+  plot(opt,level=0.9,main=paste0("Mering for flex K\nIn ",var))
+}
+```
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-merge-1.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-merge-2.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-merge-3.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-merge-4.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+
+![](04a-GMM-for-Z-project_files/figure-gfm/flowClust-merge-5.png)<!-- -->
+
+    ## Rule of identifying outliers: 90% quantile
+
+## ROC Function
+
+### for points
 
 ``` r
 flowClust_roc <- function(data,gating_data,alpha){

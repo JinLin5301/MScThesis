@@ -17,9 +17,16 @@ library("conflicted")
 library(purrr)
 library(dplyr)
 library(flowCore)
+library(ggplot2)
 library(mclust)
+library(flowEMMi)
+library(factoextra)
 library(flowClust)
+library(flowViz)
+library(flowMerge)
 library(MASS)
+library(ggpubr)
+library(plot3D)
 ```
 
 ```{r directories}
@@ -64,51 +71,111 @@ flowGMM <- function(data,n_cluster){
 
 In the first part, we don't specify the number of clusters, the best results will be determined by cross validation.
 
-```{r application}
+```{r GMM-gating,eval=FALSE}
 DAPI_GMM <- list()
+DAPI_GMM_flowemmi <- list()
 DAPI_GMM_3D <- list()
+
+GMM_plot <- list()
 
 for (i in 1:5){
   data <- DAPI[[i]]@exprs[,c(11,27)]
   data_name <- names(DAPI)[i]
   DAPI_GMM[[data_name]]<-flowGMM(data,NULL)
   
-  plot(DAPI_GMM[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
-  plot(DAPI_GMM[[i]]$model,what="BIC")
-}
-```
-
-```{r 3d}
-for (i in 1){
-  data <- DAPI[[i]]@exprs[,c(11,13,27)]
-  data_name <- names(DAPI)[i]
-  DAPI_GMM_3D[[data_name]]<-flowGMM(data,NULL)
-  
-  plot(DAPI_GMM_3D[[i]]$model,what="classification",main=data_name)
-  plot(DAPI_GMM_3D[[i]]$model,what="BIC")
-}
-
-```
-
-### Gating plots
-
-Next, we'd like to fix the cluster number to be the same as it generates by flowEMMi.
-
-```{r application+flowEMMi}
-DAPI_GMM_flowemmi <- list()
-
-for (i in 1:5){
-  data <- DAPI[[i]]@exprs[,c(11,27)]
-  data_name <- names(DAPI)[i]
   n_cluster <- length(gating_DAPI[[i]]@sigma)
   DAPI_GMM_flowemmi[[data_name]]<-flowGMM(data,n_cluster)
   
-  plot(DAPI_GMM_flowemmi[[i]]$model,what="classification",main=data_name,xlab="PMT.1",ylab="PMT.9")
+  data1 <- DAPI[[i]]@exprs[,c(11,13,27)]
+  DAPI_GMM_3D[[data_name]]<-flowGMM(data1,NULL)
+  
+  GMM_plot[[i]] <- fviz_mclust(DAPI_GMM[[i]]$model, "classification", geom = "point",main=data_name)
+  GMM_plot[[i+5]] <- fviz_mclust(DAPI_GMM_flowemmi[[i]]$model, "classification", 
+                                 geom = "point",main="K = flowEMMI")
+
+}
+
+# 2D plots
+ggarrange(plotlist = GMM_plot,ncol=5,nrow=2,common.legend = T,legend = "bottom")
+
+# 3D plots
+for (i in 1:5){
+  plot(DAPI_GMM_3D[[i]]$model,what="classification",main=data_name)
 }
 
 ```
 
-## GMM-ROC Function
+```{r,echo=FALSE}
+DAPI_GMM <- readRDS("~/Desktop/MSc_new_data/DAPI_GMM.rds")
+DAPI_GMM_flowemmi <- readRDS("~/Desktop/MSc_new_data/DAPI_GMM_flowemmi.rds")
+```
+
+## Meta-clustering 
+
+### merge
+```{r GMM-merge}
+GMM.merge <- function(gating_list){
+  
+ all_gate <- gating_DAPI[[1]]
+ all_gate@mu <- matrix(NA,nrow=2,ncol=1)
+ all_gate@sigma <- list()
+ all_gate@clusterProbs <- numeric()
+
+ for (i in 1:5){
+    mu <- gating_list[[i]]$parameter$mean
+    dim <- dim(gating_list[[i]]$parameter$variance$sigma)[3]
+  
+    sigma <- list()
+    for (j in 1:dim){
+      sigma[[j]] <- gating_list[[i]]$parameter$variance$sigma[,,j]
+    }
+    
+    prob <- gating_list[[i]]$parameter$pro
+    
+    all_gate@mu <- cbind(all_gate@mu,mu)
+    all_gate@sigma <- c(all_gate@sigma,sigma)
+    all_gate@clusterProbs <- c(all_gate@clusterProbs,prob)
+ }
+ 
+ all_gate@mu <- all_gate@mu[,-1]
+ 
+ meta_result <- removeOverlaps(em=all_gate, alpha=0.9
+                                  , mergeWhenCenter = FALSE
+                                  , mergeWhenTwoCenters = FALSE
+                                  , thresholdForDeletion = 0.5
+                                  , threshold = 0.9
+                                  , shrinkingFunction=shrinkEllipses
+                                  , considerWeights=TRUE
+                                  , plot = FALSE
+                                  , minMinor = 500)
+ return(meta_result)
+}
+
+```
+
+### plots
+
+```{r GMM-meta-plot}
+location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
+GMM_meta_flex <- GMM.merge(DAPI_GMM)
+GMM_meta_fix <- GMM.merge(DAPI_GMM_flowemmi)
+
+meta_plots <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]
+  var <- location[i]
+  meta_plots[[i]] <- plotDensityAndEllipses(fcsData = data, ch1="PMT.1", ch2="PMT.9", alpha=0.9,
+                            logScale = F, results = GMM_meta_flex,
+                            title = paste0("GMM Meta-clust on ",var," with flex. K"), 
+                            plotRelevance = T,gridsize = 1000,
+                            ellipseDotSize = 0.5, axis_size=10, axisLabeling_size=10,
+                            xlab = "Forward Scatter", ylab = "DAPI", font = "Arial")
+}
+
+```
+
+## ROC Function
 
 ### for points
 
@@ -163,9 +230,9 @@ GMMroc <- function(data,gating_data,CI){
     if(length(sigma)>2){
     area <- matrix(NA,nrow=nrow(eigen),ncol=1)
     for (i in 1:nrow(eigen)){
-      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(-2*log(1-alpha))}
+      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*threshold}
     }
-    else {area <- pi*sqrt(eigen[1]*eigen[2])*(-2*log(1-alpha))}
+    else {area <- pi*sqrt(eigen[1]*eigen[2])*threshold}
     
     area <- as.data.frame(area)
     sum2 <- sum(area)
@@ -173,7 +240,7 @@ GMMroc <- function(data,gating_data,CI){
     
     roc.points <- rbind(roc.points,sum.roc)
   }
-  result <- list(roc.table=roc.points)
+  result <- list(maha.matrix=maha,roc.table=roc.points)
   return(result)
 }
 ```
@@ -248,7 +315,7 @@ DAPI_fC_fixed <- list()
 
 # gating
 for (i in 1:5){
-  res <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=1:9)
+  res <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=1:10)
   data_name <- names(DAPI)[i]
   bic <- criterion(res, "BIC")
   max <- which.max(bic)
@@ -262,7 +329,42 @@ for (i in 1:5){
 
 ```
 
-### flowClust-ROC
+## flowMerge
+
+### merging
+```{r flowClust-merge}
+DAPI_fC_flex_merge <- list()
+DAPI_fC_fixed_merge <- list()
+
+for (i in 1:5){
+  data <- DAPI[[i]]
+  data_name <- names(DAPI)[i]
+  
+  flowobj <- flowObj(DAPI_fC_flex[[i]],data)
+  merge <- flowMerge::merge(flowobj,metric="mahalanobis")
+  a <- fitPiecewiseLinreg(merge)
+  
+  flowobj2 <- flowObj(DAPI_fC_fixed[[i]],data)
+  merge2 <- flowMerge::merge(flowobj2,metrix="mahalanobis")
+  b <-  fitPiecewiseLinreg(merge2)
+  
+  DAPI_fC_flex_merge[[data_name]] <- merge[[a]]
+  DAPI_fC_fixed_merge[[data_name]] <- merge2[[b]]
+}
+
+#plots
+for (i in 1:5){
+  opt <- DAPI_fC_flex_merge[[i]]
+  var <- location[i]
+  plot(opt,level=0.9,main=paste0("Mering for flex K\nIn ",var))
+}
+
+```
+
+
+## ROC Function
+
+### for points
 
 ```{r flowClust-roc}
 flowClust_roc <- function(data,gating_data,alpha){
