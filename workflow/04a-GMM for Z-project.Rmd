@@ -28,6 +28,7 @@ library(MASS)
 library(ggpubr)
 library(plot3D)
 library(VGAMextra)
+library(mvtnorm)
 ```
 
 ```{r directories}
@@ -224,7 +225,7 @@ GMMroc <- function(data,gating_data,dimension,CI){
       else {data1$Cluster[cell] <- which.min(rv)}
     }
   
-    result <- table(data1$Cluster) %>% as.data.frame()
+    result <- base::table(data1$Cluster) %>% as.data.frame()
     sum1 <- sum(result$Freq)
   
     eigen <- matrix(NA,nrow=length(sigma),ncol=dimension)
@@ -373,7 +374,10 @@ for (i in 1:5){
 ### for points
 
 ```{r flowClust-roc}
-flowClust_roc <- function(data,gating_data,alpha){
+flowClust_roc <- function(data,gating_data,dimension,alpha){
+  
+  w <- gating_data@w
+  
   # Box-Cox trans
   lambda <- gating_data@lambda
   data <- flowClust::box(data,lambda)
@@ -381,19 +385,10 @@ flowClust_roc <- function(data,gating_data,alpha){
   # maha-matrix
   mu <- t(gating_data@mu)
   dim <- dim(gating_data@sigma)[1]
-  
-  #inverse Box-Cox transformation
-  invBoxCox <- function(x, lambda){
-    if (lambda == 0) exp(x) 
-    else (lambda*x + 1)^(1/lambda)
-  }
     
   sigma <- list()
-  inv.sigma <- list()
   for (i in 1:dim){
-    var1 <- gating_data@sigma[i,,]
-    sigma[[i]] <- var1
-    #inv.sigma[[i]] <- invBoxCox(data,lambda)
+    sigma[[i]] <- gating_data@sigma[i,,]
   }
   
   names <- colnames(data)
@@ -412,37 +407,43 @@ flowClust_roc <- function(data,gating_data,alpha){
   
   data1 <- maha_data[,2:n_clusters] %>% as.data.frame()
   
+  #randomly sample points
+  set.seed(123)
+  num_points <- 100000
+  
+  random_points <- runif(num_points*dimension,min=200,max=65535)
+  random_boxcox <- flowClust::box(random_points,lambda) %>% round(2)
+  random_data <- matrix(random_boxcox,ncol=dimension,nrow=num_points)
+  
+  random_value <- data.frame()
+  weight_pdf <- c()
+  
+  #compute pdf value of mix-t
+  for (i in 1:num_points){
+    for (j in 1:length(sigma)){
+      pdf <- mvtnorm::dmvt(random_data[i,],delta=mu[,j],sigma=sigma[[j]],df=4,log=F)
+      weight_pdf[j] <- pdf*w[j]
+      }
+    random_value[i,1] <- sum(weight_pdf)
+    }
+  
+  adjust_value <- random_value*(max(random_boxcox)-min(random_boxcox))^dimension
   roc.points <- data.frame(cell=NA,volume=NA)
   
-  for (alpha in alpha){
-    threshold <- 2*qf(alpha,2,4)
+  #performance at diff. alpha
+  for (alpha in c(0.1,0.9)){
+    threshold <- dimension*qf(alpha,dimension,4)
     
-    for (cell in 1:ncells){
-      rv <- data1[cell,1:ncol(data1)-1]
-      if(all(rv>threshold)) {data1$Cluster[cell] <- NA}
-      else {data1$Cluster[cell] <- which.min(rv)}
+    # volume
+    inside_distribution <- c()
+    for (i in 1:num_points){
+      if(adjust_value[i,1]>threshold){inside_distribution[i]<-0}
+      else {inside_distribution[i]<-1}
     }
-  
-    result <- table(data1$Cluster) %>% as.data.frame()
-    sum1 <- sum(result$Freq)
-    
-    
-    # calculate volume
-    eigen <- matrix(NA,nrow=length(sigma),ncol=2)
-    for (i in 1:length(sigma)){
-      eigen[i,] <- eigen(sigma[[i]])$values
-    }
-    eigen <- eigen[-1,]
-  
-    area <- matrix(NA,nrow=nrow(eigen),ncol=1)
-    for (i in 1:nrow(eigen)){
-      area[i,1] <- pi*sqrt(eigen[i,1]*eigen[i,2])*(2*qf(alpha,2,4))
-    }
-    area <- as.data.frame(area)
-    sum2 <- sum(area)
-    sum.roc <- cbind(cell=sum1,volume=sum2)
-    
-    roc.points <- rbind(roc.points,sum.roc)
+    sum1 <- trunc(sum(inside_distribution)/num_points*ncells)
+    sum2 <- sum(inside_distribution)/num_points*(65535-200)^dimension
+    results <- cbind(cell=sum1,volume=sum2) %>% as.data.frame()
+    roc.points <- rbind(roc.points,results)
   }
     result <- list(maha.matrix=data1,roc.table=roc.points)
   return(result)
@@ -458,12 +459,13 @@ for (i in 1:5){
   data0 <- DAPI[[name]]@exprs[,c(11,27)]
   gating_data <- DAPI_fC_flex[[name]]
   alpha <- seq(0.01,0.99,by=0.01)
-  DAPI_fC_flex_roc[[name]] <- flowClust_roc(data0,gating_data,alpha)
+  DAPI_fC_flex_roc[[name]] <- flowClust_roc(data0,gating_data,2,alpha)
   
   #trans=0: no box-cox
-  test <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=9,trans = 0)
-  DAPI_fC_fix_roc[[i]] <- flowClust_roc(data0,test,alpha)
+  #test <- flowClust(DAPI[[i]], varNames = c("PMT.1","PMT.9"), K=9,trans = 0)
+  #DAPI_fC_fix_roc[[i]] <- flowClust_roc(data0,test,alpha)
 }
+
 ```
 
 
