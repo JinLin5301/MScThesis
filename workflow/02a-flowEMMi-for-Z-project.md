@@ -1,6 +1,6 @@
 02a-flowEMMi for-Z-project
 ================
-Compiled at 2023-11-05 19:03:09 UTC
+Compiled at 2023-11-19 19:07:49 UTC
 
 ``` r
 here::i_am(paste0(params$name, ".Rmd"), uuid = "11675b32-9913-442e-9b4a-03cdc39afb65")
@@ -524,7 +524,6 @@ annotate_figure(complete,
 
 ``` r
 location <- c("Inner_zone","Middle_zone","Outer_zone","Surrounding","Whole_colony")
-scale.type <- c("raw.point")
 point <- list()
 
 p1 <- plot_point(roc_19)
@@ -547,8 +546,6 @@ for (i in 1:5){
     scale_x_continuous(breaks = seq(0,1.5e9,by=1.5e9),labels = c(0,1.5e9))+
     theme_minimal()
 }
-  
-
 
 complete <- ggarrange(plotlist = point,
           ncol=3, nrow=2, common.legend = TRUE, legend="bottom")
@@ -561,10 +558,10 @@ annotate_figure(complete,top = "FSC vs. DAPI: Without Scaling")
 
 ``` r
 roc_flowEMMI <- readRDS("~/Desktop/MSc_new_data/roc_DAPI.rds")
-roc_GMM_flex <- readRDS("~/Desktop/MSc_new_data/GMM.roc.flex19.rds")
-roc_GMM_fixed <- readRDS("~/Desktop/MSc_new_data/GMM.roc.fix19.rds")
-roc_fC_no_BC_trans <- readRDS("~/Desktop/MSc_new_data/test0.rds")
-roc_flowClust <- readRDS("~/Desktop/MSc_new_data/DAPI_bc.rds")
+roc_GMM_flex <- readRDS("~/Desktop/MSc_new_data/DAPI_GMM_flex_roc.rds")
+roc_GMM_fix <- readRDS("~/Desktop/MSc_new_data/DAPI_GMM_fix_roc.rds")
+roc_fC_flex <- readRDS("~/Desktop/MSc_new_data/DAPI_fC_flex_roc.rds")
+roc_fC_fix <- readRDS("~/Desktop/MSc_new_data/DAPI_fC_fix_roc.rds")
 
 point <- list()
 
@@ -573,32 +570,31 @@ data1 <- roc_flowEMMI[[i]]
 data1$method <- as.factor("flowEMMI")
 
 data2 <- roc_GMM_flex[[i]]$roc.table
-data2$method <- as.factor("GMM_flex")
+data2$method <- as.factor("GMM")
 
-data3 <- roc_GMM_fixed[[i]]$roc.table
-data3$method <- as.factor("GMM_fixed")
+data3 <- roc_GMM_fix[[i]]$roc.table
+data3$method <- as.factor("GMM_K")
 
-data4 <- roc_fC_no_BC_trans[[i]]$roc.table
-data4$method <- as.factor("flowClust-no BC trans")
+data4 <- roc_fC_flex[[i]]$roc.table
+data4$method <- as.factor("flowClust")
 
-data5 <- roc_flowClust[[i]]$roc.table
-data5$method <- as.factor("flowClust")
+data5 <- roc_fC_fix[[i]]$roc.table
+data5$method <- as.factor("flowClust_K")
 
 plot.points <- data.frame()
 plot.scale <- data.frame()
 plot.scale.points <- data.frame()
 
-for (j in 1:5){
-  var <- paste0("data",j)
+for (m in 1:5){
+  var <- paste0("data",m)
   data <- get(var)
-  data[1,1:2] <- c(0,0)
+  if (m<4) {data[1,1:2] <- c(0,0)}
   
   # No Scaling
   plot.points <- rbind(plot.points,data)
   
   # Scaled by regional maximum
-  if(j < 4){max=data[100,]}
-  else{max=data[2,]}
+  max=data[nrow(data),]
   
   for (j in 1:100){
     data[j,1] <- data[j,1]/max[1,1]
@@ -626,6 +622,7 @@ for (j in 1:5){
   point[[i+5]] <- ggplot(plot.scale, aes(x = volume, y = cell, color = method)) +
     geom_line() +
     labs(x = "volume", y = "cell") +
+    coord_cartesian(xlim=c(0,1),ylim=c(0,1)) +
     scale_x_continuous(breaks = seq(0,1,by=0.5),labels = c(0,0.5,1))+
     theme_minimal()
   
@@ -638,6 +635,15 @@ for (j in 1:5){
 }
 
 complete <- ggarrange(plotlist = point,ncol=5, nrow=3, common.legend = TRUE, legend="bottom")
+```
+
+    ## Warning: Removed 2 rows containing missing values (`geom_line()`).
+    ## Removed 2 rows containing missing values (`geom_line()`).
+    ## Removed 2 rows containing missing values (`geom_line()`).
+    ## Removed 2 rows containing missing values (`geom_line()`).
+    ## Removed 2 rows containing missing values (`geom_line()`).
+
+``` r
 annotate_figure(complete,
                 top = "Inner_zone         Middle_zone       Outer_zone       Surrounding        Whole_colony",
                 left = "            Global               Regional                None Scaled") 
